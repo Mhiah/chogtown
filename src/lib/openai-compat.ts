@@ -1,5 +1,8 @@
 import type { AskOpts } from "./claude";
 
+/** Last failure, shown on /api/health to help setup. */
+export let lastAltError = "";
+
 export interface Provider { name: string; url: string; key: string; model: string }
 
 /**
@@ -27,17 +30,19 @@ export async function askCompatJSON<T>(p: Provider, opts: AskOpts): Promise<T | 
       signal: AbortSignal.timeout(45000),
     });
     if (!r.ok) {
-      console.error(`${p.name} error ${r.status}:`, (await r.text()).slice(0, 300));
+      lastAltError = `${p.name} ${r.status}: ${(await r.text()).slice(0, 300)}`;
+      console.error(lastAltError);
       return null;
     }
     const data = await r.json();
     const text: string | undefined = data?.choices?.[0]?.message?.content;
-    if (!text) return null;
-    const out = JSON.parse(text);
-    if (!out || typeof out !== "object" || required.some((k) => !(k in out))) return null;
+    if (!text) { lastAltError = `${p.name}: empty reply`; return null; }
+    const out = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, ""));
+    if (!out || typeof out !== "object" || required.some((k) => !(k in out))) { lastAltError = `${p.name}: reply missing fields: ${text.slice(0, 200)}`; return null; }
     return out as T;
   } catch (e) {
-    console.error(`${p.name} call failed:`, e);
+    lastAltError = `${p.name} call failed: ${e instanceof Error ? e.message : String(e)}`;
+    console.error(lastAltError);
     return null;
   }
 }

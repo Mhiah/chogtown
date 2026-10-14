@@ -2,7 +2,8 @@ export const CHOG_CONTRACT = "0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763" as con
 export const CHOG_SUPPLY = 1969;
 export const MONAD_CHAIN_ID = 143;
 export const MONAD_RPC = process.env.MONAD_RPC_URL || "https://rpc.monad.xyz";
-export const IPFS_GATEWAY = process.env.IPFS_GATEWAY || "https://ipfs.io/ipfs/";
+/** Tried in order; public IPFS gateways are often slow or rate-limited. */
+export const IPFS_GATEWAYS = [process.env.IPFS_GATEWAY, "https://ipfs.io/ipfs/", "https://dweb.link/ipfs/", "https://gateway.pinata.cloud/ipfs/", "https://w3s.link/ipfs/"].filter(Boolean) as string[];
 export const MODEL = process.env.CHOG_MODEL || "claude-haiku-5-5";
 export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
 /**

@@ -1,4 +1,4 @@
-import { IPFS_GATEWAY } from "./config";
+import { IPFS_GATEWAYS } from "./config";
 import { tokenURI } from "./chain";
 
 export type Traits = Record<string, string>;
@@ -10,7 +10,27 @@ export interface ChogMeta {
   real: boolean;
 }
 
-export const ipfs = (u: string) => (u.startsWith("ipfs://") ? IPFS_GATEWAY + u.slice(7).replace(/^ipfs\//, "") : u);
+const cid = (u: string) => u.slice(7).replace(/^ipfs\//, "");
+export const ipfs = (u: string, gw = IPFS_GATEWAYS[0]) => (u.startsWith("ipfs://") ? gw + cid(u) : u);
+
+/** Last metadata failure, shown on /api/health. */
+export let lastMetaError = "";
+
+/** Fetches a URL, trying each IPFS gateway in turn for ipfs:// links. */
+export async function fetchIpfs(u: string, timeout = 8000) {
+  const urls = u.startsWith("ipfs://") ? IPFS_GATEWAYS.map((g) => ipfs(u, g)) : [u];
+  const errors: string[] = [];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+      if (r.ok) return r;
+      errors.push(`${new URL(url).host} ${r.status}`);
+    } catch (e) {
+      errors.push(`${new URL(url).host} ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  throw new Error(errors.join("; "));
+}
 
 /** Reads the Chog's metadata from its tokenURI. Falls back to stand-in traits so the town still works offline. */
 export async function fetchMeta(tokenId: number): Promise<ChogMeta> {
@@ -21,14 +41,14 @@ export async function fetchMeta(tokenId: number): Promise<ChogMeta> {
       if (uri.startsWith("data:application/json;base64,")) json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
       else if (uri.startsWith("data:application/json")) json = JSON.parse(decodeURIComponent(uri.split(",")[1]));
       else {
-        const r = await fetch(ipfs(uri), { signal: AbortSignal.timeout(8000), next: { revalidate: 86400 } });
+        const r = await fetchIpfs(uri);
         json = await r.json();
       }
       const traits: Traits = {};
       for (const a of json.attributes ?? []) if (a.trait_type) traits[a.trait_type] = String(a.value);
-      return { name: json.name || `Chog #${tokenId}`, image: json.image ? ipfs(json.image) : null, traits, real: true };
-    } catch {
-      /* fall through */
+      return { name: json.name || `Chog #${tokenId}`, image: json.image ?? null, traits, real: true };
+    } catch (e) {
+      lastMetaError = `#${tokenId} ${uri}: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
   return { name: `Chog #${tokenId}`, image: null, traits: standInTraits(tokenId), real: false };

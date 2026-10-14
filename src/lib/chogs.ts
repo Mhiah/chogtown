@@ -35,6 +35,8 @@ export interface Chog {
   resident: boolean;
   /** true once Claude has named it and written its backstory */
   storied: boolean;
+  /** last time we retried reading real traits for a Chog built from stand-ins */
+  metaTriedAt?: number;
   createdAt: number;
 }
 
@@ -79,7 +81,7 @@ export async function saveChog(c: Chog) {
 /** Loads a Chog, bringing it to life from its on-chain traits the first time. */
 export async function getChog(id: number, opts: { resident?: boolean; story?: boolean } = {}): Promise<Chog> {
   const found = await loadChog(id);
-  if (found) return found;
+  if (found) return found.real ? found : refreshTraits(found);
   const meta = await fetchMeta(id);
   const archetype = archetypeFor(meta.traits), flavor = flavorFor(meta.traits), district = districtFor(meta.traits);
   const base = startingStats(meta.traits, archetype, flavor);
@@ -92,6 +94,25 @@ export async function getChog(id: number, opts: { resident?: boolean; story?: bo
   };
   c.backstory = templateBackstory(c);
   if (opts.story) await writeStory(c);
+  await saveChog(c);
+  return c;
+}
+
+/**
+ * A Chog created while the chain or IPFS was unreachable has stand-in traits. Retry every
+ * ten minutes; once the real traits arrive, rebuild its character and keep its drift so far.
+ */
+async function refreshTraits(c: Chog) {
+  if (Date.now() - (c.metaTriedAt ?? 0) < 600e3) return c;
+  c.metaTriedAt = Date.now();
+  const meta = await fetchMeta(c.id);
+  if (meta.real) {
+    const archetype = archetypeFor(meta.traits), flavor = flavorFor(meta.traits);
+    const base = startingStats(meta.traits, archetype, flavor);
+    for (const k of STAT_KEYS) c.stats[k] = Math.max(0, Math.min(100, c.stats[k] - c.base[k] + base[k]));
+    Object.assign(c, { nftName: meta.name, image: meta.image, traits: meta.traits, real: true, archetype, flavor, district: districtFor(meta.traits), base });
+    if (!c.storied) { c.name = defaultName(c.id, archetype, flavor); c.backstory = templateBackstory(c); }
+  }
   await saveChog(c);
   return c;
 }
