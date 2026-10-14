@@ -3,7 +3,7 @@ export const CHOG_SUPPLY = 1969;
 export const MONAD_CHAIN_ID = 143;
 export const MONAD_RPC = process.env.MONAD_RPC_URL || "https://rpc.monad.xyz";
 export const IPFS_GATEWAY = process.env.IPFS_GATEWAY || "https://ipfs.io/ipfs/";
-export const MODEL = process.env.CHOG_MODEL || "claude-opus-5-5";
+export const MODEL = process.env.CHOG_MODEL || "claude-haiku-5-5";
 export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 /** Chogs that live in town from day one, so the first visitor finds neighbours, gossip and a debate. */

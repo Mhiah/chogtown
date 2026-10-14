@@ -40,7 +40,7 @@ npm run dev
 
 Everything works without keys: Chogs talk from a small script, nights use templates, and data lives in memory. Add:
 
-- `ANTHROPIC_API_KEY` for real voices, gossip and debates (Claude, model `claude-opus-5-5` by default).
+- `ANTHROPIC_API_KEY` for real voices, gossip and debates (Claude, model `claude-haiku-5-5` by default, which costs a fraction of a cent per chat; set `CHOG_MODEL` to use a bigger model).
 - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` to persist data. Run `supabase/schema.sql` once.
 - `SESSION_SECRET` (required in production) and `CRON_SECRET`.
 
