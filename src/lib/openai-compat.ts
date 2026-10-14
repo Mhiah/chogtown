@@ -1,12 +1,13 @@
 import type { AskOpts } from "./claude";
-import { GROQ_MODEL } from "./config";
+
+export interface Provider { name: string; url: string; key: string; model: string }
 
 /**
- * Free fallback for when there's no Anthropic key: Groq's OpenAI-compatible chat API
- * (free plan, no card). Asks for a JSON object and checks the top-level keys the
+ * Alternatives for when there's no Anthropic key: xAI (Grok) and Groq both speak the
+ * OpenAI-style chat API. Asks for a JSON object and checks the top-level keys the
  * schema requires; anything else returns null so the caller uses its scripted fallback.
  */
-export async function askGroqJSON<T>(opts: AskOpts): Promise<T | null> {
+export async function askCompatJSON<T>(p: Provider, opts: AskOpts): Promise<T | null> {
   const required = (opts.schema.required as string[] | undefined) ?? [];
   const messages = [
     {
@@ -19,14 +20,14 @@ export async function askGroqJSON<T>(opts: AskOpts): Promise<T | null> {
     })),
   ];
   try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const r = await fetch(p.url, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-      body: JSON.stringify({ model: GROQ_MODEL, messages, response_format: { type: "json_object" }, max_tokens: opts.maxTokens ?? 4000 }),
+      headers: { "content-type": "application/json", authorization: `Bearer ${p.key}` },
+      body: JSON.stringify({ model: p.model, messages, response_format: { type: "json_object" }, max_tokens: opts.maxTokens ?? 4000 }),
       signal: AbortSignal.timeout(45000),
     });
     if (!r.ok) {
-      console.error(`Groq error ${r.status}:`, (await r.text()).slice(0, 300));
+      console.error(`${p.name} error ${r.status}:`, (await r.text()).slice(0, 300));
       return null;
     }
     const data = await r.json();
@@ -36,7 +37,7 @@ export async function askGroqJSON<T>(opts: AskOpts): Promise<T | null> {
     if (!out || typeof out !== "object" || required.some((k) => !(k in out))) return null;
     return out as T;
   } catch (e) {
-    console.error("Groq call failed:", e);
+    console.error(`${p.name} call failed:`, e);
     return null;
   }
 }

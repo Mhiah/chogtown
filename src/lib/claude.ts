@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { MODEL, hasClaude, hasGroq } from "./config";
-import { askGroqJSON } from "./groq";
+import { MODEL, hasClaude, altProvider } from "./config";
+import { askCompatJSON } from "./openai-compat";
 
 let client: Anthropic | null = null;
 const ai = () => (client ??= new Anthropic());
@@ -17,12 +17,15 @@ export interface AskOpts {
 
 /**
  * One AI call that must come back as JSON matching `schema`.
- * Uses Claude (structured outputs) when ANTHROPIC_API_KEY is set, else the free Groq
- * fallback when GROQ_API_KEY is set. Returns null when neither is set, the model
+ * Uses Claude (structured outputs) when ANTHROPIC_API_KEY is set, else xAI Grok or
+ * Groq when their key is set (see altProvider). Returns null when neither is set, the model
  * declines, or the call fails, so every caller has a scripted fallback and the town never breaks.
  */
 export async function askJSON<T>(opts: AskOpts): Promise<T | null> {
-  if (!hasClaude()) return hasGroq() ? askGroqJSON<T>(opts) : null;
+  if (!hasClaude()) {
+    const alt = altProvider();
+    return alt ? askCompatJSON<T>(alt, opts) : null;
+  }
   try {
     const res = await ai().messages.create({
       model: MODEL,
