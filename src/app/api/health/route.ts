@@ -4,7 +4,7 @@ import { tokenURI } from "@/lib/chain";
 import { fetchMeta, lastMetaError } from "@/lib/metadata";
 import { lastAltError } from "@/lib/openai-compat";
 import { askJSON, obj, str } from "@/lib/claude";
-import { altProvider, hasClaude, MODEL } from "@/lib/config";
+import { altProviders, hasClaude, MODEL } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,9 +20,9 @@ const time = async <T,>(f: () => Promise<T>) => {
 
 /** Setup check: which settings are present and whether each service answers. Shows no secrets. */
 export async function GET() {
-  const alt = altProvider();
+  const alts = altProviders();
   const env = {
-    ai: hasClaude() ? `Claude (${MODEL})` : alt ? `${alt.name} (${alt.model})` : "none, scripted lines",
+    ai: hasClaude() ? `Claude (${MODEL})` : alts.length ? alts.map((a) => `${a.name} (${a.model})`).join(", then ") : "none, scripted lines",
     supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
     sessionSecret: Boolean(process.env.SESSION_SECRET),
     cronSecret: Boolean(process.env.CRON_SECRET),

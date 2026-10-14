@@ -66,7 +66,10 @@ const g = globalThis as unknown as { __chogStore?: Store };
 
 export function store(): Store {
   if (!g.__chogStore) {
-    const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const raw = process.env.SUPABASE_URL?.trim(), key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    // Accept the URL as copied from any Supabase page, e.g. with /rest/v1/ on the end.
+    let url = raw;
+    try { if (raw) url = new URL(raw).origin; } catch { /* keep as given */ }
     g.__chogStore = url && key ? new SupabaseStore(createClient(url, key, { auth: { persistSession: false } })) : new MemoryStore();
   }
   return g.__chogStore;

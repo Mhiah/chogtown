@@ -7,15 +7,16 @@ export const IPFS_GATEWAYS = [process.env.IPFS_GATEWAY, "https://ipfs.io/ipfs/",
 export const MODEL = process.env.CHOG_MODEL || "claude-haiku-5-5";
 export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
 /**
- * Alternatives when there is no Anthropic key, tried in this order:
- * xAI Grok (console.x.ai, trial credit) and Groq (console.groq.com, free plan).
+ * Alternatives when there is no Anthropic key, tried in this order until one answers:
+ * xAI Grok (console.x.ai) and Groq (console.groq.com, free plan).
  */
-export function altProvider() {
-  if (process.env.XAI_API_KEY) return { name: "xAI", url: "https://api.x.ai/v1/chat/completions", key: process.env.XAI_API_KEY, model: process.env.XAI_MODEL || "grok-4.3" };
-  if (process.env.GROQ_API_KEY) return { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL || "openai/gpt-oss-120b" };
-  return null;
+export function altProviders() {
+  const list: { name: string; url: string; key: string; model: string }[] = [];
+  if (process.env.XAI_API_KEY) list.push({ name: "xAI", url: "https://api.x.ai/v1/chat/completions", key: process.env.XAI_API_KEY.trim(), model: process.env.XAI_MODEL || "grok-4.3" });
+  if (process.env.GROQ_API_KEY) list.push({ name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: process.env.GROQ_API_KEY.trim(), model: process.env.GROQ_MODEL || "openai/gpt-oss-120b" });
+  return list;
 }
-export const hasAI = () => hasClaude() || altProvider() !== null;
+export const hasAI = () => hasClaude() || altProviders().length > 0;
 
 /** Chogs that live in town from day one, so the first visitor finds neighbours, gossip and a debate. */
 export const RESIDENT_IDS = [1204, 474, 88, 1203, 640, 77, 9, 1500, 300, 641, 512, 1969, 7, 1111, 250, 999];
