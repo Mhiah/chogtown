@@ -1,24 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { MODEL, hasClaude } from "./config";
+import { MODEL, hasClaude, hasGroq } from "./config";
+import { askGroqJSON } from "./groq";
 
 let client: Anthropic | null = null;
 const ai = () => (client ??= new Anthropic());
 
 type Effort = "low" | "medium" | "high";
 
-/**
- * One Claude call that must come back as JSON matching `schema` (structured outputs).
- * Returns null when no API key is set, the model declines, or the call fails,
- * so every caller has an offline fallback and the town never breaks.
- */
-export async function askJSON<T>(opts: {
+export interface AskOpts {
   system: string;
   messages: Anthropic.MessageParam[];
   schema: Record<string, unknown>;
   effort?: Effort;
   maxTokens?: number;
-}): Promise<T | null> {
-  if (!hasClaude()) return null;
+}
+
+/**
+ * One AI call that must come back as JSON matching `schema`.
+ * Uses Claude (structured outputs) when ANTHROPIC_API_KEY is set, else the free Groq
+ * fallback when GROQ_API_KEY is set. Returns null when neither is set, the model
+ * declines, or the call fails, so every caller has a scripted fallback and the town never breaks.
+ */
+export async function askJSON<T>(opts: AskOpts): Promise<T | null> {
+  if (!hasClaude()) return hasGroq() ? askGroqJSON<T>(opts) : null;
   try {
     const res = await ai().messages.create({
       model: MODEL,
