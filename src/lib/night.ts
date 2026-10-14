@@ -126,7 +126,7 @@ export async function runNight(opts: { force?: boolean; maxPairs?: number } = {}
   const r = rand(daySeed(day) + chogs.length);
   const pairs = pairUp(chogs, r, opts.maxPairs ?? 10);
   const events: TownEvent[] = [];
-  await inBatches(pairs, 4, async ([a, b]) => {
+  await inBatches(pairs, 6, async ([a, b]) => {
     const m = await meet(a, b, r);
     relate(a, b, m.outcome, day); relate(b, a, m.outcome, day);
     influence(a, b, m.outcome); influence(b, a, m.outcome);
