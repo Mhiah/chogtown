@@ -36,7 +36,9 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function resize(){
     dpr = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight;
     canvas.width = W * dpr; canvas.height = H * dpr;
-    S = Math.min(W / (R * 2 + 140), H / ((R * 2 * TILT) + 300)); CX = W / 2; CY = H * .56;
+    const narrow = W < 600;
+    S = narrow ? Math.min(W * .96 / (R * 2), H / ((R * 2 * TILT) + 260)) : Math.min(W / (R * 2 + 140), H / ((R * 2 * TILT) + 300));
+    CX = W / 2; CY = narrow ? H * .5 : H * .56;
   }
   resize(); addEventListener('resize', resize);
 
@@ -502,20 +504,20 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function frog(f){ const x = sx(f.x), hop = Math.sin(Math.min(1, f.t / .32) * Math.PI) * 30; ctx.font = `${30 * S}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🐸', x, sy(f.z, hop) + 10 * S); }
 
   function hud(){
-    const pad = 16, cw = Math.min(300, W * .42);
+    const narrow = W < 600, pad = narrow ? 10 : 16, cw = narrow ? (W - pad * 3) / 2 : Math.min(300, W * .42), ch = narrow ? 54 : 64, top = narrow ? 64 : pad;
     P.forEach((p, i) => {
-      const x = i ? W - pad - cw : pad, y = pad;
-      ctx.fillStyle = 'rgba(20,9,31,.55)'; rr(x, y, cw, 64, 18); ctx.fill();
-      ctx.strokeStyle = i ? 'rgba(255,155,203,.6)' : 'rgba(232,191,116,.7)'; ctx.lineWidth = 1.5; rr(x, y, cw, 64, 18); ctx.stroke();
-      const ix = i ? x + cw - 56 : x + 10;
-      ctx.save(); ctx.beginPath(); ctx.arc(ix + 23, y + 32, 23, 0, TAU); ctx.clip(); if (p.img.complete && p.img.naturalWidth) ctx.drawImage(p.img, ix, y + 9, 46, 46); ctx.restore();
-      ctx.textAlign = i ? 'right' : 'left'; const tx = i ? ix - 10 : ix + 56;
-      ctx.fillStyle = '#fff'; ctx.font = '700 14px Inter, system-ui, sans-serif'; ctx.fillText(p.name.length > 22 ? p.name.slice(0, 21) + '…' : p.name, tx, y + 26);
-      ctx.font = '800 20px Inter, system-ui, sans-serif'; const pct = Math.round(p.dmg); ctx.fillStyle = pct < 50 ? '#fff' : pct < 100 ? '#ffd45c' : '#ff7b6e'; ctx.fillText(`${pct}%`, tx, y + 50);
-      for (let s = 0; s < STOCKS; s++){ const dx = i ? tx - 60 - s * 16 : tx + 60 + s * 16; ctx.fillStyle = s < p.stocks ? (i ? '#ff9bcb' : '#f4ce87') : 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(dx, y + 44, 5.5, 0, TAU); ctx.fill(); }
+      const x = i ? W - pad - cw : pad, y = top, av = narrow ? 36 : 46, max = narrow ? 11 : 22;
+      ctx.fillStyle = 'rgba(20,9,31,.55)'; rr(x, y, cw, ch, 18); ctx.fill();
+      ctx.strokeStyle = i ? 'rgba(255,155,203,.6)' : 'rgba(232,191,116,.7)'; ctx.lineWidth = 1.5; rr(x, y, cw, ch, 18); ctx.stroke();
+      const ix = i ? x + cw - av - 9 : x + 9;
+      ctx.save(); ctx.beginPath(); ctx.arc(ix + av / 2, y + ch / 2, av / 2, 0, TAU); ctx.clip(); if (p.img.complete && p.img.naturalWidth) ctx.drawImage(p.img, ix, y + (ch - av) / 2, av, av); ctx.restore();
+      ctx.textAlign = i ? 'right' : 'left'; const tx = i ? ix - 9 : ix + av + 9;
+      ctx.fillStyle = '#fff'; ctx.font = `700 ${narrow ? 12 : 14}px Inter, system-ui, sans-serif`; ctx.fillText(p.name.length > max ? p.name.slice(0, max - 1) + '…' : p.name, tx, y + (narrow ? 22 : 26));
+      ctx.font = `800 ${narrow ? 17 : 20}px Inter, system-ui, sans-serif`; const pct = Math.round(p.dmg); ctx.fillStyle = pct < 50 ? '#fff' : pct < 100 ? '#ffd45c' : '#ff7b6e'; ctx.fillText(`${pct}%`, tx, y + (narrow ? 43 : 50));
+      for (let s = 0; s < STOCKS; s++){ const dx = i ? tx - (narrow ? 50 : 60) - s * 14 : tx + (narrow ? 50 : 60) + s * 14; ctx.fillStyle = s < p.stocks ? (i ? '#ff9bcb' : '#f4ce87') : 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(dx, y + (narrow ? 38 : 44), 5, 0, TAU); ctx.fill(); }
     });
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff2d8'; ctx.font = '800 22px Inter, system-ui, sans-serif';
-    const m = Math.floor(clock / 60), s = Math.floor(clock % 60); ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2, 44);
+    const m = Math.floor(clock / 60), s = Math.floor(clock % 60); ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2, narrow ? top + ch + 28 : 44);
     if (phase === 'intro'){ const n = Math.ceil(3 - phaseT); big(n > 0 ? String(n) : 'RUMBLE!', '#f4ce87'); }
     if (phase === 'fight' && time < 3.8 + 0.6) big('RUMBLE!', '#f4ce87', Math.max(0, 1 - (time - 3) * 1.6));
     if (phase === 'end' && result && phaseT < 1.5) big(result.won ? 'YOU WIN' : 'KNOCKED OUT', result.won ? '#f4ce87' : '#ff9bcb', 1 - phaseT / 1.5);
