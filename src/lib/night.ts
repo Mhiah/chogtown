@@ -238,5 +238,6 @@ export async function leaderboards() {
   }
   feuds.sort((a, b) => b.nights - a.nights);
   const warmest = [...chogs].sort((a, b) => b.stats.warmth - a.stats.warmth).slice(0, 10).map((c) => ({ id: c.id, name: label(c), value: `${c.stats.warmth} warmth` }));
-  return { Streaks: streaks, "Debate wins": wins, Feuds: feuds.slice(0, 10), Warmest: warmest };
+  const rumble = (chogs as (Chog & { rumble?: { w: number; l: number } })[]).filter((c) => (c.rumble?.w ?? 0) > 0).sort((a, b) => b.rumble!.w - a.rumble!.w).slice(0, 10).map((c) => ({ id: c.id, name: label(c), value: `${c.rumble!.w}–${c.rumble!.l}` }));
+  return { Rumble: rumble, Streaks: streaks, "Debate wins": wins, Feuds: feuds.slice(0, 10), Warmest: warmest };
 }
