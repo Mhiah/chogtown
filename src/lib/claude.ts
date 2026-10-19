@@ -22,13 +22,19 @@ export interface AskOpts {
  * declines, or the call fails, so every caller has a scripted fallback and the town never breaks.
  */
 export async function askJSON<T>(opts: AskOpts): Promise<T | null> {
-  if (!hasClaude()) {
-    for (const p of altProviders()) {
-      const out = await askCompatJSON<T>(p, opts);
-      if (out) return out;
-    }
-    return null;
+  if (hasClaude()) {
+    const out = await askClaude<T>(opts);
+    if (out) return out;
   }
+  // Grok, then Groq: a provider that is out of credits or down just hands over to the next one.
+  for (const p of altProviders()) {
+    const out = await askCompatJSON<T>(p, opts);
+    if (out) return out;
+  }
+  return null;
+}
+
+async function askClaude<T>(opts: AskOpts): Promise<T | null> {
   try {
     const res = await ai().messages.create({
       model: MODEL,

@@ -1,6 +1,6 @@
 import { store } from "./store";
 import { askJSON, obj, str, oneOf } from "./claude";
-import { RESIDENT_IDS, today } from "./config";
+import { RESIDENT_IDS, NEWCOMERS_PER_NIGHT, CHOG_SUPPLY, today } from "./config";
 import { ARCHETYPES, chemistry, nudge, STAT_KEYS, type Stats } from "./personality";
 import { type Chog, allChogs, getChog, saveChog, label, loadChog } from "./chogs";
 
@@ -122,8 +122,13 @@ export async function runNight(opts: { force?: boolean; maxPairs?: number } = {}
   await store().set("meta", "night", { day });
 
   await settleDebate();
-  const chogs = await ensureTown();
+  let chogs = await ensureTown();
   const r = rand(daySeed(day) + chogs.length);
+  // Newcomers: a few more of the 1,969 wake up every night, so the town keeps meeting new faces.
+  const awake = new Set(chogs.map((c) => c.id));
+  const fresh: number[] = [];
+  for (let i = 0; i < 200 && fresh.length < NEWCOMERS_PER_NIGHT; i++) { const id = 1 + Math.floor(r() * CHOG_SUPPLY); if (!awake.has(id) && !fresh.includes(id)) fresh.push(id); }
+  if (fresh.length) { await Promise.all(fresh.map((id) => getChog(id, { resident: true }))); chogs = await allChogs(); }
   const pairs = pairUp(chogs, r, opts.maxPairs ?? 10);
   const events: TownEvent[] = [];
   await inBatches(pairs, 6, async ([a, b]) => {

@@ -19,7 +19,10 @@ export function altProviders() {
 export const hasAI = () => hasClaude() || altProviders().length > 0;
 
 /** Chogs that live in town from day one, so the first visitor finds neighbours, gossip and a debate. */
-export const RESIDENT_IDS = [1204, 474, 88, 1203, 640, 77, 9, 1500, 300, 641, 512, 1969, 7, 1111, 250, 999];
+export const RESIDENT_IDS = [1204, 474, 88, 1203, 640, 77, 9, 1500, 300, 641, 512, 1969, 7, 1111, 250, 999,
+  53, 1462, 1514, 1461, 900, 742, 158, 949, 1417, 680, 670, 1949, 981, 1525, 314, 1561, 439, 33, 120, 205, 377, 460, 588, 733, 812, 866, 1023, 1088, 1290, 1377, 1650, 1802];
+/** Each night this many Chogs from the rest of the collection wake up and move in. */
+export const NEWCOMERS_PER_NIGHT = 8;
 
 /** UTC day key, e.g. 2026-10-14. The town's day rolls over at midnight UTC. */
 export const today = (d = new Date()) => d.toISOString().slice(0, 10);

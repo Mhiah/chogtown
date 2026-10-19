@@ -76,7 +76,7 @@ export default function App() {
       <header className="top">
         <div className="brand"><Brand /> Chogtown</div>
         <div className="meta">
-          <span className="pill glass when">{clock} <b>·</b> {population ?? "…"} Chogs in town</span>
+          <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>
             {me?.address ? short(me.address) : me?.guest ? "Guest" : "Sign in"}
           </button>
