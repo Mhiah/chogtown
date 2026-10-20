@@ -30,6 +30,21 @@ Real trait names map through keyword rules plus `EYES_OVERRIDES` / `MOUTH_OVERRI
 
 Sign-in is a free signed message (no transaction). The server checks the signature, then calls `ownerOf` on the Chog Genesis contract (`0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763`, Monad, chain 143) before letting a wallet act as a Chog's owner, and re-checks hourly. Visitors without a Chog can look around as a guest with a resident Chog.
 
+## Holders and $CHOG
+
+Everything here only reads the chain. The one exception is a tip, which you send and approve in your own wallet.
+
+- **Chog holders:** sign in with your wallet and play your own Chog.
+  - It wears a 👑 on the island.
+  - It can Challenge a rival from Side-eye (guests need Beef first).
+  - It opens the 250 and 500 high-roller bets at the Lucky Lilypad.
+- **$CHOG holders** get more daily casino chips: +200 a day from 1,000 $CHOG, +500 from 25,000 and +1,500 from 250,000.
+- **Tip a Chog in $CHOG:** a tip goes straight to whoever holds that Chog.
+  - The server finds the $CHOG `Transfer` in the transaction on Monad before counting it.
+  - The Chog thanks you live on the island, and the tip makes the Gazette.
+  - Tips show on the Chog's card and in the Main Event.
+- $CHOG token: `0x350035555E10d9AfAF1566AaebfCeD5BA6C27777` (Monad, 18 decimals).
+
 ## Running it
 
 ```bash
