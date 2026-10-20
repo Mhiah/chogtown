@@ -219,7 +219,7 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
       out.push({
         id: c.id, name: c.name, archetype: c.archetype, image: c.image, at: c.at, path: c.path, leg: c.leg, legT: +c.legT.toFixed(3),
         slot: c.slot, dest: c.dest, out: c.out, fade: +c.fade.toFixed(2), leaving: !!c.leaving, face: c.face, walking: c.walking, lane: +c.lane.toFixed(4),
-        player: !!c.player, bubble: c.bubble && { text: c.bubble.text, emote: c.bubble.emote, age: +(t - c.bubble.t0).toFixed(2), left: +(c.bubble.until - t).toFixed(2) },
+        player: !!c.player, owned: !!c.owned, bubble: c.bubble && { text: c.bubble.text, emote: c.bubble.emote, age: +(t - c.bubble.t0).toFixed(2), left: +(c.bubble.until - t).toFixed(2) },
       });
     }
     return { t: +t.toFixed(2), chogs: out, inside: inside(), rally };

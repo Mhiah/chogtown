@@ -36,6 +36,27 @@ export async function signIn() {
   return api<{ address: string }>("/api/auth/verify", { message, signature });
 }
 
+export const CHOG_TOKEN = "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777";
+
+/**
+ * Tips a Chog's holder in $CHOG: a plain ERC-20 transfer from the viewer's own wallet, which they approve
+ * in their wallet. Returns the transaction hash for the server to check on Monad.
+ */
+export async function sendChogTip(from: string, to: string, amount: number) {
+  const w = eth();
+  if (!w) throw new Error("No wallet found. Open Chogtown in your wallet's browser to tip.");
+  const [acct] = await w.request({ method: "eth_requestAccounts" });
+  if (acct.toLowerCase() !== from.toLowerCase()) throw new Error("Switch your wallet to the account you signed in with.");
+  try { await w.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MONAD.chainId }] }); }
+  catch (e) { if ((e as { code?: number })?.code === 4902) await w.request({ method: "wallet_addEthereumChain", params: [MONAD] }); else throw e; }
+  const { encodeFunctionData, parseUnits } = await import("viem");
+  const data = encodeFunctionData({
+    abi: [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "value", type: "uint256" }], outputs: [{ type: "bool" }] }],
+    functionName: "transfer", args: [to as `0x${string}`, parseUnits(String(amount), 18)],
+  });
+  return (await w.request({ method: "eth_sendTransaction", params: [{ from: acct, to: CHOG_TOKEN, data }] })) as `0x${string}`;
+}
+
 export const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 export function ago(t: number) {

@@ -15,8 +15,11 @@ import { askJSON, obj, str } from "@/lib/claude";
 import { today } from "@/lib/config";
 import type { TownEvent } from "@/lib/night";
 import { adjust } from "@/lib/casino";
+import { client, ownerOf } from "@/lib/chain";
+import { CHOG_TOKEN } from "@/lib/config";
+import { decodeEventLog, formatUnits, getAddress, parseAbi } from "viem";
 
-const V = 5; // bump to replace a running island in dev
+const V = 6; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
 const AUTO_MAIN_EVERY_MS = 12 * 60_000;
@@ -37,6 +40,7 @@ export const CARDS = {
 export type CardKey = keyof typeof CARDS;
 
 interface Feud { a: number; b: number; heat: number; log: string[]; t: number }
+interface Tips { id: number; total: number; count: number; last: { from: string; amount: number; t: number } | null }
 interface Main {
   id: string; a: Fighter; b: Fighter; seed: number; why: string;
   bellAt: number; startAt: number; endAt: number;
@@ -54,6 +58,7 @@ function boot() {
     v: V, sim: null as any, chogs: new Map<number, Chog>(), feuds: new Map<string, Feud>(),
     main: null as Main | null, lastMain: null as Main | null, recent: [] as string[], nextMain: Date.now() + FIRST_MAIN_AFTER_MS,
     clients: new Set<Send>(), players: new Map<number, { vid: string; until: number; busy: boolean; cool: number }>(),
+    tips: new Map<number, Tips>(), owners: new Map<number, { a: string | null; at: number }>(),
     seen: 0, changed: -1, lastSent: 0, timer: null as ReturnType<typeof setInterval> | null, ready: null as Promise<void> | null,
   };
   return st;
@@ -74,11 +79,12 @@ async function start(I: Island) {
   for (const c of chogs) I.chogs.set(c.id, c);
   const awake = new Set(chogs.map((c) => c.id));
   const cast = chogs.slice(0, 64).map((c) => ({
-    id: c.id, name: c.name, archetype: c.archetype, image: c.image,
+    id: c.id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner,
     rel: Object.fromEntries(Object.entries(c.rel).filter(([o, r]) => awake.has(Number(o)) && r.kind !== "neutral").map(([o, r]) => [o, r.kind])),
   }));
   I.sim = createSim(cast, { seed: Date.now() % 1e9 });
   for (const f of await store().list<Feud>("feuds", 300)) I.feuds.set(key(f.a, f.b), f);
+  for (const t of await store().list<Tips>("tips", 2000)) I.tips.set(t.id, t);
   // seed the drama: rivals from past nights start with some heat
   for (const c of chogs) for (const [o, r] of Object.entries(c.rel)) {
     if (r.kind !== "rival" || !awake.has(Number(o))) continue;
@@ -120,7 +126,7 @@ export function view(I: Island) {
 function mainView(m: Main | null) {
   if (!m) return null;
   const n = { a: 0, b: 0 }; for (const s of Object.values(m.picks)) n[s]++;
-  return { id: m.id, a: m.a, b: m.b, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, pool: pools(m), done: m.done, winner: m.done ? m.winner : null };
+  return { id: m.id, a: { ...m.a, tips: tipsOf(m.a.id) }, b: { ...m.b, tips: tipsOf(m.b.id) }, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, pool: pools(m), done: m.done, winner: m.done ? m.winner : null };
 }
 
 function broadcast(I: Island) {
@@ -172,7 +178,7 @@ async function chogFor(I: Island, id: number) {
 export async function join(vid: string, id: number) {
   const I = await island();
   const c = await chogFor(I, id);
-  if (!I.sim.byId[id]) I.sim.add({ id, name: c.name, archetype: c.archetype, image: c.image, rel: {} });
+  if (!I.sim.byId[id]) I.sim.add({ id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner, rel: {} });
   const p = I.players.get(id);
   if (p && p.vid !== vid && p.until > Date.now()) return { ok: false, error: `Someone else is playing ${c.name} right now.` };
   I.players.set(id, { vid, until: Date.now() + 5 * 60_000, busy: p?.busy ?? false, cool: p?.cool ?? 0 });
@@ -198,7 +204,8 @@ export async function walk(vid: string, id: number, node: string) {
 type Line = { by: "a" | "b"; text: string };
 
 /** Play an intention card on another Chog: your Chog walks over, the AI writes the scene, the feud moves. */
-export async function play(vid: string, id: number, target: number, card: CardKey) {
+/** holder: the player verified on Monad that they own this Chog; they can call rivals out from Side-eye. */
+export async function play(vid: string, id: number, target: number, card: CardKey, holder = false) {
   const I = await island();
   if (!CARDS[card]) return { ok: false, error: "Unknown card." };
   if (id === target) return { ok: false, error: "Pick another Chog." };
@@ -223,7 +230,7 @@ export async function play(vid: string, id: number, target: number, card: CardKe
     const pool = I.sim.chogs.filter((c: { id: number; out: boolean }) => c.out && c.id !== id && c.id !== target);
     about = pool.length ? await chogFor(I, pick(pool as { id: number }[]).id) : null;
   }
-  const accepted = card === "challenge" && stage >= 2 && !I.main;
+  const accepted = card === "challenge" && stage >= (holder ? 1 : 2) && !I.main;
   const lines = await sceneLines(a, b, card, stage, f?.log ?? [], about, accepted);
   sc.lines = lines.map((l, i) => ({ ...l, emote: i === 0 ? CARDS[card].emote : "" }));
 
@@ -392,4 +399,51 @@ export async function ringNow() {
   I.main = null; I.sim.setRally(false);
   await autoMain(I);
   return { ok: true };
+}
+
+/* ---------- $CHOG tips ---------- */
+
+const TRANSFER = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"]);
+function tipsOf(id: number) { return Math.round(G.__chogIsland?.tips?.get(id)?.total ?? 0); }
+export async function tipsFor(id: number) { const I = await island(); return I.tips.get(id) ?? { id, total: 0, count: 0, last: null }; }
+
+/** The wallet that holds a Chog right now, cached for a few minutes. Tips go straight to it. */
+export async function holderOf(id: number) {
+  const I = await island();
+  const hit = I.owners.get(id);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.a;
+  const a = await ownerOf(id);
+  I.owners.set(id, { a, at: Date.now() });
+  return a;
+}
+
+/**
+ * A viewer tipped a Chog's holder in $CHOG from their own wallet. We only read the chain: find the $CHOG
+ * Transfer in that transaction from the viewer to the Chog's holder, then celebrate it on the island.
+ */
+export async function tip(from: string, id: number, hash: `0x${string}`) {
+  const I = await island();
+  if (await store().get("tiptx", hash)) return { ok: false, error: "That tip was already counted." };
+  const to = await holderOf(id);
+  if (!to) return { ok: false, error: "Couldn't find who holds that Chog on Monad." };
+  const receipt = await client.waitForTransactionReceipt({ hash, timeout: 60_000 }).catch(() => null);
+  if (!receipt || receipt.status !== "success") return { ok: false, error: "That transaction didn't go through." };
+  let amount = 0;
+  for (const log of receipt.logs) {
+    if (getAddress(log.address) !== getAddress(CHOG_TOKEN)) continue;
+    try {
+      const ev = decodeEventLog({ abi: TRANSFER, data: log.data, topics: log.topics });
+      if (getAddress(ev.args.from) === getAddress(from) && getAddress(ev.args.to) === getAddress(to)) amount += Number(formatUnits(ev.args.value, 18));
+    } catch { /* not a transfer */ }
+  }
+  if (amount <= 0) return { ok: false, error: "No $CHOG went from your wallet to that Chog's holder in this transaction." };
+  await store().set("tiptx", hash, { hash, id, from, amount, t: Date.now() });
+  const t = I.tips.get(id) ?? { id, total: 0, count: 0, last: null };
+  t.total += amount; t.count++; t.last = { from: getAddress(from), amount, t: Date.now() };
+  I.tips.set(id, t);
+  await store().set("tips", String(id), t);
+  const c = I.sim.byId[id];
+  if (c?.out) { c.bubble = { text: `${Math.round(amount).toLocaleString()} $CHOG?! Thank you!!`, emote: "🪙", t0: I.sim.t, until: I.sim.t + 5 }; I.changed = -1; }
+  gazette(`${name(I, id)} just got tipped ${Math.round(amount).toLocaleString()} $CHOG by a fan. That's ${Math.round(t.total).toLocaleString()} $CHOG in tips so far.`, [id], "friends");
+  return { ok: true, amount, total: t.total };
 }

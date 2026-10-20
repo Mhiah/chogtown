@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ctrlIcons } from "./icons";
 import Diorama, { type LiveView } from "./Diorama";
 import { ChogCard, PlayBar, FeudTicker, MainEvent } from "./LiveLayer";
+import Onboarding from "./Onboarding";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -31,6 +32,7 @@ export default function App() {
   const [live, setLive] = useState<LiveView | null>(null);
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [help, setHelp] = useState(false);
   const onLive = useCallback((v: LiveView) => { setLive(v); setOffset(v.now - Date.now()); }, []);
 
   const toast = useCallback((t: string) => {
@@ -90,12 +92,14 @@ export default function App() {
     <>
       <Diorama active={active} entered={entered} onOpen={open} bounceKey={bounceKey} mine={me?.tokenId ?? null}
         onChog={(id, x, y) => setPicked({ id, x, y })} onWalk={walk} onLive={onLive} />
-      {entered && !active && <><PlayBar live={live} me={me} name={myName} onJoin={join} onLeave={() => setPicked(null)} /><FeudTicker live={live} /></>}
+      {entered && !active && <><PlayBar live={live} me={me} name={myName} onJoin={join} onLeave={() => setPicked(null)} onSignIn={() => open("home")} /><FeudTicker live={live} /></>}
       {picked && <ChogCard id={picked.id} x={picked.x} y={picked.y} live={live} me={me} onClose={() => setPicked(null)} onPlayAs={playAs} toast={toast} />}
       <MainEvent live={live} offset={offset} toast={toast} />
+      <Onboarding entered={entered && !active} open={help} onClose={() => setHelp(false)} />
       <header className="top">
         <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
+          <button className="pill glass btnlike help" aria-label="How Chogtown works" onClick={() => { setEntered(true); setHelp(true); }}>?</button>
           <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>
             {me?.address ? short(me.address) : me?.guest ? "Guest" : "Sign in"}

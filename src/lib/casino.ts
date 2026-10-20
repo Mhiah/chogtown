@@ -10,6 +10,9 @@ import type { TownEvent } from "./night";
 export const START_CHIPS = 500;
 export const DAILY_CHIPS = 200;
 export const BETS = [10, 25, 50, 100] as const;
+/** the high-roller table: Chog NFT holders and big $CHOG holders */
+export const HIGH_BETS = [250, 500] as const;
+export const allowedBet = (bet: number, highRoller: boolean) => (BETS as readonly number[]).includes(bet) || (highRoller && (HIGH_BETS as readonly number[]).includes(bet));
 
 export interface Wallet { vid: string; chips: number; day: string; name: string; spins: number; best: number; won: number; jackpots: number }
 
@@ -33,12 +36,13 @@ export function payout(reels: Sym[]) {
   return { x: 0, line: reels.includes("jeet") ? "Jeeted." : "No luck this time." };
 }
 
-export async function wallet(vid: string, name?: string) {
+/** bonus: extra daily chips from $CHOG holdings */
+export async function wallet(vid: string, name?: string, bonus = 0) {
   const day = today();
   let w = await store().get<Wallet>("wallets", vid);
   let topUp = 0;
   if (!w) { w = { vid, chips: START_CHIPS, day, name: name ?? "A guest", spins: 0, best: 0, won: 0, jackpots: 0 }; topUp = START_CHIPS; }
-  else if (w.day !== day) { w.chips += DAILY_CHIPS; w.day = day; topUp = DAILY_CHIPS; }
+  else if (w.day !== day) { w.chips += DAILY_CHIPS + bonus; w.day = day; topUp = DAILY_CHIPS + bonus; }
   if (name) w.name = name;
   if (topUp) await store().set("wallets", vid, w);
   return { w, topUp };
@@ -46,9 +50,9 @@ export async function wallet(vid: string, name?: string) {
 
 async function save(w: Wallet) { await store().set("wallets", w.vid, w); }
 
-export async function spin(vid: string, bet: number, name?: string) {
-  if (!BETS.includes(bet as (typeof BETS)[number])) throw new Error("Pick a bet: 10, 25, 50 or 100 chips.");
-  const { w } = await wallet(vid, name);
+export async function spin(vid: string, bet: number, name?: string, highRoller = false, bonus = 0) {
+  if (!allowedBet(bet, highRoller)) throw new Error(highRoller ? "Pick a bet: 10 to 500 chips." : "Pick a bet: 10, 25, 50 or 100 chips. The 250 and 500 tables are for holders.");
+  const { w } = await wallet(vid, name, bonus);
   if (w.chips < bet) throw new Error(`You need ${bet} chips for that spin. Fresh chips arrive tomorrow.`);
   const reels = [roll(), roll(), roll()];
   const { x, line } = payout(reels);

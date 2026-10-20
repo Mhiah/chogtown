@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { api, errMsg } from "./client";
+import { api, errMsg, sendChogTip, short } from "./client";
 import type { LiveView, MainView } from "./Diorama";
 import type { Me } from "./types";
 
@@ -18,7 +18,8 @@ export const CARDS = [
 const STAGE_NAMES = ["Cordial", "Side-eye", "Beef", "Public feud", "Main Event"];
 const ARCH: Record<string, string> = { critic: "Critic", hype: "Hype Beast", dreamer: "Dreamer", schemer: "Schemer", sweetheart: "Sweetheart", drama: "Drama Queen", brawler: "Brawler", knowitall: "Know-it-all" };
 
-type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null };
+type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number };
+const TIPS = [100, 1000, 10000];
 
 export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
   id: number; x: number; y: number; live: LiveView | null; me: Me | null; onClose(): void; onPlayAs(id: number): Promise<void>; toast(t: string): void;
@@ -30,10 +31,24 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
   const [hint, setHint] = useState<string | null>(null);
   const playing = !!me?.tokenId && live?.players.includes(me.tokenId);
   const taken = live?.players.includes(id) && !mine;
+  const [tipping, setTipping] = useState<number | null>(null);
   useEffect(() => {
-    if (!me?.tokenId || mine) return;
     api<Feud>(`/api/live/feud?b=${id}`).then(setFeud).catch(() => {});
-  }, [id, me?.tokenId, mine]);
+  }, [id, me?.tokenId]);
+  const need = me?.holder ? 1 : 2; // holders can call a rival out from Side-eye
+  const canTip = !!me?.address && !!feud?.owner && feud.owner.toLowerCase() !== me.address.toLowerCase();
+  const sendTip = async (amount: number) => {
+    if (!me?.address || !feud?.owner) return;
+    setTipping(amount);
+    try {
+      const hash = await sendChogTip(me.address, feud.owner, amount);
+      toast("Tip sent. Checking it on Monad…");
+      const r = await api<{ amount: number; total: number }>("/api/live/tip", { id, hash });
+      setFeud((f) => (f ? { ...f, tips: Math.round(r.total) } : f));
+      toast(`${Math.round(r.amount).toLocaleString()} $CHOG to ${c?.name}'s holder. Watch the island!`);
+    } catch (e) { toast(errMsg(e)); }
+    setTipping(null);
+  };
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
@@ -52,7 +67,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
     setBusy(false);
   };
 
-  const W = 300, H = 330, left = Math.max(12, Math.min(innerWidth - W - 12, x - W / 2)), top = Math.max(70, Math.min(innerHeight - H - 12, y > innerHeight * .55 ? y - H - 24 : y + 18));
+  const W = 300, H = 400, left = Math.max(12, Math.min(innerWidth - W - 12, x - W / 2)), top = Math.max(70, Math.min(innerHeight - H - 12, y > innerHeight * .55 ? y - H - 24 : y + 18));
   return createPortal(
     <div className="live-card" style={{ left, top, width: W }} role="dialog" aria-label={c.name} onClick={(e) => e.stopPropagation()}>
       <button className="live-x" onClick={onClose} aria-label="Close">✕</button>
@@ -61,7 +76,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
         <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · being played" : ""}</em></div>
       </div>
       {mine && <p className="live-note">That's you. Tap anywhere on the island to walk, or tap another Chog to play a card on it.</p>}
-      {!mine && feud && (
+      {!mine && me?.tokenId && feud && (
         <div className="live-feud">
           <div className="live-feud-top"><span>Your feud</span><b className={`stage s${feud.stage}`}>{feud.name}</b></div>
           <div className="heat"><i style={{ width: `${feud.heat}%` }} /></div>
@@ -71,7 +86,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
       {!mine && playing && !taken && (
         <div className="live-cards">
           {CARDS.map((k) => (
-            <button key={k.key} className={`live-cardbtn${k.key === "challenge" ? " wide" : ""}`} disabled={busy || (k.key === "challenge" && (feud?.stage ?? 0) < 2) || !!live?.main && !live.main.done}
+            <button key={k.key} className={`live-cardbtn${k.key === "challenge" ? " wide" : ""}`} disabled={busy || (k.key === "challenge" && (feud?.stage ?? 0) < need) || !!live?.main && !live.main.done}
               onClick={() => play(k.key)} onPointerEnter={() => setHint(k.what)} onFocus={() => setHint(k.what)} title={k.what}>
               <span className="e">{k.emote}</span><b>{k.name}</b>
             </button>
@@ -79,9 +94,20 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
         </div>
       )}
       {!mine && playing && !taken && (
-        <p className="live-note hint">{busy ? "Walking over…" : hint ?? ((feud?.stage ?? 0) < 2 ? "Roast or spread rumours to reach Beef. Then you can Challenge." : "It's Beef now. Challenge them to the Main Event.")}</p>
+        <p className="live-note hint">{busy ? "Walking over…" : hint ?? ((feud?.stage ?? 0) < need ? (me?.holder ? "👑 Holders can Challenge from Side-eye. One roast gets you there." : "Roast or spread rumours to reach Beef. Then you can Challenge.") : "It's on. Challenge them to the Main Event.")}</p>
       )}
       {!mine && me?.tokenId && !playing && <p className="live-note">Bring your Chog onto the island first (button at the top).</p>}
+      {!mine && feud && (
+        <div className="live-tip">
+          <div className="live-feud-top"><span>🪙 $CHOG tips</span><b>{(feud.tips ?? 0).toLocaleString()}</b></div>
+          {canTip ? (
+            <div className="tip-row">{TIPS.map((t) => <button key={t} className="tipbtn" disabled={tipping !== null} onClick={() => sendTip(t)}>{tipping === t ? "…" : `Tip ${t >= 1000 ? `${t / 1000}k` : t}`}</button>)}</div>
+          ) : (
+            <p className="live-note">{me?.address ? (feud.owner ? "That's your own Chog." : "Couldn't find its holder right now.") : "Sign in with a wallet to tip this Chog's holder in $CHOG."}</p>
+          )}
+          {canTip && feud.owner && <p className="live-note small">Goes straight to its holder, {short(feud.owner)}. Your wallet asks you to approve it.</p>}
+        </div>
+      )}
       {!mine && !taken && (!me?.tokenId || !playing) && (
         <button className="btn small" disabled={busy} onClick={async () => { setBusy(true); await onPlayAs(id); setBusy(false); onClose(); }}>Play as {c.name}</button>
       )}
@@ -90,14 +116,14 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
   );
 }
 
-export function PlayBar({ live, me, name, onJoin, onLeave }: { live: LiveView | null; me: Me | null; name: string | null; onJoin(): void; onLeave(): void }) {
+export function PlayBar({ live, me, name, onJoin, onLeave, onSignIn }: { live: LiveView | null; me: Me | null; name: string | null; onJoin(): void; onLeave(): void; onSignIn(): void }) {
   if (!live) return null;
   const playing = !!me?.tokenId && live.players.includes(me.tokenId);
   return (
     <div className={`playbar${playing ? " on" : ""}`}>
-      {!me?.tokenId && <span>Tap any Chog on the island to play as it</span>}
+      {!me?.tokenId && <><span>Tap any Chog on the island to play as it</span><button className="btn small ghost" onClick={onSignIn}>Holder? Sign in 👑</button></>}
       {me?.tokenId && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
-      {playing && <><span className="dot" /><span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
+      {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}<span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
     </div>
   );
 }

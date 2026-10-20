@@ -31,7 +31,8 @@ export async function POST(req: Request) {
   let r: { ok: boolean; error?: string };
   if (b.kind === "join") r = await join(s.vid, s.tokenId);
   else if (b.kind === "walk" && typeof b.node === "string") r = await walk(s.vid, s.tokenId, b.node);
-  else if (b.kind === "card" && Number.isInteger(b.target) && b.card in CARDS) r = await play(s.vid, s.tokenId, b.target, b.card as CardKey);
+  // a holder signed in with the wallet that owns this Chog (checked on Monad when they picked it)
+  else if (b.kind === "card" && Number.isInteger(b.target) && b.card in CARDS) r = await play(s.vid, s.tokenId, b.target, b.card as CardKey, !!s.address && !s.guest);
   else return fail("Unknown action.");
   return r.ok ? json(r) : fail(r.error ?? "That didn't work.");
 }

@@ -72,6 +72,11 @@ export function drawIsland(ctx, sim, view, now, hover) {
     if (im) { ctx.scale(c.face < 0 ? -1 : 1, 1); ctx.drawImage(im, c.face < 0 ? -cx - cw : cx, cy, cw, ch); }
     else { ctx.fillStyle = '#efe8ff'; ctx.fillRect(cx, cy, cw, ch); }
     ctx.restore();
+    if (c.owned) {
+      // a holder's Chog wears a crown
+      ctx.font = `${s * .5}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('👑', cx + cw - s * .08, cy + s * .08);
+    }
     if (hover === c.id || c.mine) {
       ctx.strokeStyle = c.mine ? ROSE : ROYAL; ctx.lineWidth = Math.max(2, s * .07);
       rr(ctx, cx - s * .07, cy - s * .07, cw + s * .14, ch + s * .14, s * .2); ctx.stroke();

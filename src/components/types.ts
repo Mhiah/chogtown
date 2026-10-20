@@ -8,7 +8,8 @@ export const PLACES: { key: PlaceKey; name: string; eyebrow: string; dock: strin
   { key: "casino", name: "Lucky Lilypad", eyebrow: "Casino · play chips only", dock: "Casino" },
 ];
 
-export interface Me { address: string | null; tokenId: number | null; guest: boolean; held: { balance: number; ids: number[] | null } | null; ai: boolean }
+export interface Perks { nfts: number; chog: number; tier: "none" | "holder" | "roller" | "whale"; tierName: string | null; daily: number; highRoller: boolean }
+export interface Me { address: string | null; tokenId: number | null; guest: boolean; held: { balance: number; ids: number[] | null } | null; ai: boolean; perks?: Perks; holder?: boolean }
 export type Stats = Record<"warmth" | "confidence" | "chaos" | "trust" | "curiosity", number>;
 export interface ChogView {
   id: number; name: string; nftName: string; image: string | null; traits: Record<string, string>; real: boolean;

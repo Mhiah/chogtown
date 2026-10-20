@@ -12,7 +12,7 @@ const PAYS: { s: Sym; x: number }[] = [{ s: "frog", x: 50 }, { s: "crown", x: 20
 const EMOJI: Record<Exclude<Sym, "jeet">, string> = { frog: "🐸", crown: "👑", cap: "🧢", heart: "💜", glasses: "🕶️" };
 const Face = ({ s }: { s: Sym }) => (s === "jeet" ? <img src="/toy/jeet.webp" alt="jeet" /> : <span>{EMOJI[s]}</span>);
 
-type Info = { chips: number; topUp: number; spins: number; best: number; bets: number[]; start: number; daily: number; board: { name: string; chips: number; best: number; jackpots: number }[]; myBet: { id: string; side: "a" | "b"; amount: number } | null };
+type Info = { chips: number; topUp: number; spins: number; best: number; bets: number[]; start: number; daily: number; board: { name: string; chips: number; best: number; jackpots: number }[]; myBet: { id: string; side: "a" | "b"; amount: number } | null; perks?: { nfts: number; chog: number; tierName: string | null; daily: number; highRoller: boolean } };
 
 export default function CasinoPanel({ shell }: { shell: Shell }) {
   const [info, setInfo] = useState<Info | null>(null);
@@ -26,6 +26,7 @@ export default function CasinoPanel({ shell }: { shell: Shell }) {
   return (
     <>
       <div className="chips-bar"><span className="coin">🪙</span><b>{info.chips.toLocaleString()}</b><span>chips</span><em>Play chips only · +{info.daily} every day</em></div>
+      <Perks p={info.perks} signedIn={!!shell.me?.address} />
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === "slots"} onClick={() => setTab("slots")}>Chog Slots</button>
         <button role="tab" aria-selected={tab === "book"} onClick={() => setTab("book")}>Main Event{main && !main.done ? " 🔴" : ""}</button>
@@ -139,4 +140,13 @@ function Book({ shell, chips, bets, onChips, saved }: { shell: Shell; chips: num
       <p className="note">{mine ? `Your bet: ${mine.amount} on ${(mine.side === "a" ? m.a : m.b).name}. Winners split the whole pool.` : "Winners split the whole pool. The odds move as people bet."}</p>
     </div>
   );
+}
+
+/** What your wallet unlocks here: Chog NFT holders and $CHOG holders get the high-roller table and more daily chips. */
+function Perks({ p, signedIn }: { p?: Info["perks"]; signedIn: boolean }) {
+  if (!signedIn) return <p className="note perks-note">👑 Hold a Chog or $CHOG? Sign in with your wallet for the 250 and 500 tables and bigger daily chips: +200, +500 or +1,500 a day depending on your $CHOG.</p>;
+  if (!p) return null;
+  const bits = [p.nfts ? `👑 ${p.nfts} Chog${p.nfts === 1 ? "" : "s"}` : null, p.tierName ? `🪙 ${p.tierName} · ${p.chog.toLocaleString()} $CHOG` : null].filter(Boolean);
+  if (!bits.length) return <p className="note perks-note">No Chog or $CHOG in this wallet yet. Holders get the high-roller table and up to +1,500 chips a day.</p>;
+  return <div className="perks-row">{bits.map((b) => <span key={b} className="perk-tag">{b}</span>)}{p.highRoller && <span className="perk-tag">High-roller table open</span>}{p.daily > 0 && <span className="perk-tag">+{p.daily} daily</span>}</div>;
 }

@@ -1,4 +1,6 @@
 export const CHOG_CONTRACT = "0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763" as const;
+/** The $CHOG token on Monad (ERC-20, 18 decimals). */
+export const CHOG_TOKEN = "0x350035555E10d9AfAF1566AaebfCeD5BA6C27777" as const;
 export const CHOG_SUPPLY = 1969;
 export const MONAD_CHAIN_ID = 143;
 export const MONAD_RPC = process.env.MONAD_RPC_URL || "https://rpc.monad.xyz";
