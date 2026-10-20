@@ -16,6 +16,7 @@ import { today } from "@/lib/config";
 import type { TownEvent } from "@/lib/night";
 import { adjust } from "@/lib/casino";
 import { bump, seen } from "@/lib/stats";
+import { progress } from "@/lib/quests";
 import { POWERS, powersOf, isNight, type PowerKey } from "@/lib/powers";
 import { client, ownerOf } from "@/lib/chain";
 import { CHOG_TOKEN } from "@/lib/config";
@@ -230,7 +231,7 @@ export async function shout(vid: string, id: number, text: string) {
   c.bubble = { text: t, emote: "📣", t0: I.sim.t, until: I.sim.t + Math.max(4, Math.min(7, t.length / 12)) };
   p.shoutAt = Date.now();
   I.changed = -1;
-  bump("shouts").catch(() => {});
+  bump("shouts").catch(() => {}); progress(vid, "shout").catch(() => {});
   return { ok: true, text: t };
 }
 
@@ -250,7 +251,7 @@ export async function play(vid: string, id: number, target: number, card: AnyCar
     const me = await chogFor(I, id);
     if (!powersOf(me.traits).includes(card as PowerKey)) return { ok: false, error: `${me.name} needs ${POWERS[card as PowerKey].from} for that.` };
     if (card === "haunt" && !isNight()) return { ok: false, error: "Haunting only works at night (19:00–06:00 UTC)." };
-    if (card === "pump" || card === "dump") return candle(I, me, target, card);
+    if (card === "pump" || card === "dump") { progress(vid, "power").catch(() => {}); return candle(I, me, target, card); }
     if (card === "crown" && I.crown && I.crown.id !== target && I.crown.id !== id) return { ok: false, error: `${I.crown.name} wears the crown. Play it on ${I.crown.name} to take it.` };
     if (card === "crown" && I.crown?.id === id) return { ok: false, error: "You're already Chog of the Day." };
   }
@@ -267,6 +268,7 @@ export async function play(vid: string, id: number, target: number, card: AnyCar
   if (!sc) return { ok: false, error: "Couldn't get over there. Try again." };
   p.busy = true; p.cool = Date.now() + 8000;
   bump(`card_${card}`).catch(() => {}); bump("scenes").catch(() => {});
+  progress(vid, "scenes").catch(() => {}); if (card in POWERS) progress(vid, "power").catch(() => {});
 
   const [a, b] = await Promise.all([chogFor(I, id), chogFor(I, target)]);
   const f = feudOf(I, id, target);
@@ -428,7 +430,7 @@ export async function betMain(vid: string, side: "a" | "b", amount: number, name
   const left = await adjust(vid, -amount, name);
   if (left === null) return { ok: false, error: "Not enough chips. Spin the slots or come back tomorrow." };
   m.bets[vid] = { side, amount: (prev?.amount ?? 0) + amount, name };
-  bump("bets").catch(() => {}); bump("chips_bet", amount).catch(() => {});
+  bump("bets").catch(() => {}); bump("chips_bet", amount).catch(() => {}); progress(vid, "bet").catch(() => {});
   m.picks[vid] = side;
   I.changed = -1; // tell viewers the odds moved
   return { ok: true, chips: left, bet: m.bets[vid], pool: pools(m) };

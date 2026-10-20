@@ -5,6 +5,7 @@ import { ctrlIcons } from "./icons";
 import Diorama, { type LiveView } from "./Diorama";
 import { ChogCard, PlayBar, FeudTicker, MainEvent } from "./LiveLayer";
 import Onboarding from "./Onboarding";
+import Quests from "./Quests";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -106,6 +107,7 @@ export default function App() {
       <header className="top">
         <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
+          <Quests entered={entered} playing={!!me?.tokenId && !!live?.players.includes(me.tokenId)} toast={toast} />
           <button className="pill glass btnlike help" aria-label="How Chogtown works" onClick={() => { setEntered(true); setHelp(true); }}>?</button>
           <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>

@@ -426,3 +426,17 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .playbar .shout input:focus{box-shadow:inset 0 0 0 2px var(--royal)}
 .playbar .shout input.err::placeholder{color:#e0245e}
 @media (max-width:700px){.playbar .shout input{width:120px}}
+/* ---------- daily quests ---------- */
+.quests-wrap{position:relative;pointer-events:auto}
+.quests-pill{font-family:var(--display);font-weight:600;gap:6px}
+.quests-pill.all{background:#2b1b5a;color:#ffbf3c}
+.quests-pill .streak{font-size:12px;margin-left:2px}
+.quests-pop{position:absolute;right:0;top:calc(100% + 10px);width:290px;background:#fff;border-radius:22px;padding:14px;box-shadow:0 8px 0 var(--lip),0 30px 60px rgba(91,47,214,.22);display:flex;flex-direction:column;gap:8px;z-index:20;animation:liveIn .25s cubic-bezier(.3,1.5,.5,1)}
+.quest{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;background:#f6f2ff;border-radius:14px;padding:8px 10px;font-weight:800;font-size:13.5px;color:var(--ink)}
+.quest .tick{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px #ddd2ff;display:grid;place-items:center;color:#fff;font-size:13px}
+.quest.done .tick{background:#1aa35a;box-shadow:none}
+.quest.done .t{color:var(--ink2);text-decoration:line-through}
+.quest .n{font-family:var(--display);font-weight:600;color:var(--royal);font-size:13px}
+.quest.done .n{color:#1aa35a}
+.quests-pop .note{margin:2px 0 0;font-size:12px}
+@media (max-width:700px){.quests-pop{right:-60px;width:min(290px,calc(100vw - 24px))}}

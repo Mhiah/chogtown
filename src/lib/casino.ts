@@ -7,6 +7,7 @@ import { store } from "./store";
 import { today } from "./config";
 import type { TownEvent } from "./night";
 import { bump } from "./stats";
+import { progress } from "./quests";
 
 export const START_CHIPS = 500;
 export const DAILY_CHIPS = 200;
@@ -66,7 +67,10 @@ export async function spin(vid: string, bet: number, name?: string, highRoller =
     await store().set("events", e.id, e);
   }
   await save(w);
-  return { reels, x, win, line, chips: w.chips };
+  // save the spin first, then count the quest (a finished quest pays into the saved wallet)
+  const q = await progress(vid, "spins").catch(() => null);
+  const chips = q?.paid ? (await store().get<Wallet>("wallets", vid))?.chips ?? w.chips : w.chips;
+  return { reels, x, win, line, chips, quest: q };
 }
 
 /** Moves chips in or out of a wallet (Main Event bets and payouts). Returns the new balance, or null if it can't afford it. */
