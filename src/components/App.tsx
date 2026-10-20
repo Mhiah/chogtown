@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createTown } from "@/town/scene";
 import { ctrlIcons } from "./icons";
+import Diorama from "./Diorama";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -11,16 +11,12 @@ import ArenaPanel from "./panels/ArenaPanel";
 import HallPanel from "./panels/HallPanel";
 import ShopPanel from "./panels/ShopPanel";
 
-type Town = ReturnType<typeof createTown>;
-
 /** Toybox art (public/toy): an icon per place for the dock, and the toy Chog doing that place's thing for the sheet header. */
 export const PLACE_ICON: Record<PlaceKey, string> = { home: "/toy/i-home.webp", arena: "/toy/i-arena.webp", feed: "/toy/i-feed.webp", hall: "/toy/i-hall.webp", shop: "/toy/i-shop.webp" };
 const PLACE_TOY: Record<PlaceKey, string> = { home: "/toy/hug.webp", arena: "/toy/fight.webp", feed: "/toy/read.webp", hall: "/toy/trophy.webp", shop: "/toy/selfie.webp" };
 
 export default function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const labelsRef = useRef<HTMLDivElement>(null);
-  const town = useRef<Town | null>(null);
+  const [bounceKey, setBounceKey] = useState(0);
   const [active, setActive] = useState<PlaceKey | null>(null);
   const [entered, setEntered] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
@@ -37,22 +33,11 @@ export default function App() {
     toastT.current = setTimeout(() => setToastOn(false), 2600);
   }, []);
 
-  const open = useCallback((key: PlaceKey) => {
-    setEntered(true); town.current?.enter();
-    setActive(key); town.current?.focus(key);
-  }, []);
-  const close = useCallback(() => { setActive(null); town.current?.overview(); }, []);
-  const openRef = useRef(open); openRef.current = open;
-
-  useEffect(() => {
-    const t = createTown({ canvas: canvasRef.current, labelsEl: labelsRef.current, onOpen: (k: PlaceKey) => openRef.current(k) });
-    town.current = t;
-    return () => t.dispose();
-  }, []);
+  const open = useCallback((key: PlaceKey) => { setEntered(true); setActive(key); }, []);
+  const close = useCallback(() => setActive(null), []);
 
   const refreshMe = useCallback(async () => { setMe(await api<Me>("/api/me").catch(() => ({ address: null, tokenId: null, guest: false, held: null, ai: false }))); }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
-  useEffect(() => { if (chog) town.current?.setLook(chog.look); }, [chog]);
   useEffect(() => { api<{ population: number }>("/api/town").then((d) => setPopulation(d.population)).catch(() => {}); }, []);
   useEffect(() => {
     const tick = () => {
@@ -69,14 +54,14 @@ export default function App() {
 
   const shell: Shell = {
     me, refreshMe, chog, setChog, toast,
-    bounce: () => town.current?.bounce(),
-    setLook: (l) => town.current?.setLook(l),
+    bounce: () => setBounceKey((b) => b + 1),
+    setLook: () => {}, // looks show on the Boutique card; the diorama keeps the town mascot
   };
   const place = PLACES.find((p) => p.key === active);
 
   return (
     <>
-      <canvas id="scene" ref={canvasRef} aria-label="Chogtown, a floating 3D city. Use the buttons to visit each place." />
+      <Diorama active={active} entered={entered} onOpen={open} bounceKey={bounceKey} />
       <header className="top">
         <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
@@ -86,15 +71,6 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      <div id="labels" ref={labelsRef} />
-
-      <div className="ctrl glass" role="group" aria-label="View">
-        <button aria-label="Zoom in" onClick={() => town.current?.zoomIn()}>{ctrlIcons.zin}</button>
-        <button aria-label="Zoom out" onClick={() => town.current?.zoomOut()}>{ctrlIcons.zout}</button>
-        <button className="hide-m" aria-label="Rotate view" onClick={() => town.current?.rotate()}>{ctrlIcons.rot}</button>
-        <button aria-label="Show the whole town" onClick={close}>{ctrlIcons.reset}</button>
-      </div>
 
       <nav className="dock glass" aria-label="Places in Chogtown">
         {PLACES.map((p) => (
@@ -120,13 +96,12 @@ export default function App() {
       </aside>
 
       <section className={`intro${entered ? " gone" : ""}`}>
-        <img className="intro-toy" src="/toy/wave.webp" alt="" />
         <div className="intro-inner">
           <div className="eyebrow">Chogathon 2026 · A floating toy town</div>
           <h1>Every Chog<br />has a <span>life.</span></h1>
           <p>All 1,969 Chogs live here. By night they gossip and feud. By day you check in, fight your rivals in the Rumble and blast jeets with your face.</p>
           <div className="btns">
-            <button className="btn" onClick={() => { setEntered(true); town.current?.enter(); }}>Enter town →</button>
+            <button className="btn" onClick={() => setEntered(true)}>Enter town →</button>
             <button className="btn ghost" onClick={() => open("home")}>Visit any Chog</button>
           </div>
           <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>5</b><span>places</span></div><div><b>every night</b><span>new gossip</span></div></div>

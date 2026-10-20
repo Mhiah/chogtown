@@ -183,3 +183,46 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
   .intro-toy{left:auto;right:-6vw;bottom:2vh;width:62vw}
   .brand .mark{width:34px;height:34px}
 }
+
+/* ---------- the diorama town (replaces the three.js canvas) ---------- */
+.diorama{position:fixed;inset:0;overflow:hidden;background:linear-gradient(180deg,#d6c8ff 0%,#efe3ff 45%,#ffe2ea 100%);user-select:none;-webkit-user-select:none}
+.dio-world{position:absolute;inset:0;transition:transform 1.1s cubic-bezier(.16,1,.3,1);will-change:transform}
+.dio-art{position:absolute;max-width:none;pointer-events:none;animation:dioFloat 9s ease-in-out infinite}
+@keyframes dioFloat{50%{transform:translateY(-8px)}}
+.dio-toy{position:absolute;transform:translate(-50%,-100%);pointer-events:none;filter:drop-shadow(0 24px 18px rgba(74,36,176,.25));animation:toyIdle 3.4s ease-in-out infinite,toyHop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes toyIdle{50%{transform:translate(-50%,-100%) translateY(-10px) rotate(-2deg)}}
+@keyframes toyHop{0%{transform:translate(-50%,-100%) scale(1)}40%{transform:translate(-50%,-100%) translateY(-40px) scale(1.06,.94)}}
+.dio-spot{position:absolute;transform:translate(-50%,-50%);border:0;background:none;padding:0;cursor:pointer;z-index:2;animation:spotIn .6s cubic-bezier(.3,1.6,.5,1) backwards}
+.dio-spot:nth-child(3){animation-delay:.05s}.dio-spot:nth-child(4){animation-delay:.1s}.dio-spot:nth-child(5){animation-delay:.15s}.dio-spot:nth-child(6){animation-delay:.2s}.dio-spot:nth-child(7){animation-delay:.25s}
+@keyframes spotIn{from{opacity:0;transform:translate(-50%,-30%) scale(.6)}}
+.dio-spot .ring{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.45),0 6px 16px rgba(74,36,176,.3)}
+.dio-spot .ring::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:3px solid rgba(255,255,255,.8);animation:ping 2.2s ease-out infinite}
+@keyframes ping{from{transform:scale(.5);opacity:1}to{transform:scale(1.8);opacity:0}}
+.dio-spot .dio-tag{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:6px 14px 6px 6px;white-space:nowrap;
+  box-shadow:0 5px 0 var(--lip),0 14px 30px rgba(74,36,176,.22);transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.dio-spot .dio-tag img{width:38px;height:38px;object-fit:contain}
+.dio-spot .dio-tag span{display:flex;flex-direction:column;text-align:left}
+.dio-spot .dio-tag b{font-family:var(--display);font-weight:600;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);line-height:1.1}
+.dio-spot .dio-tag em{font-style:normal;font-size:12px;font-weight:700;color:var(--ink2);max-height:0;opacity:0;overflow:hidden;transition:max-height .3s,opacity .3s}
+.dio-spot:hover .tag,.dio-spot.hot .tag,.dio-spot:focus-visible .tag{transform:translateX(-50%) translateY(-6px) scale(1.04)}
+.dio-spot:hover .tag em,.dio-spot.hot .tag em{max-height:18px;opacity:1}
+.dio-close{position:absolute;inset:0;background-size:cover;background-position:30% center;opacity:0;transform:scale(1.08);transition:opacity .7s,transform 6s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.dio-close.on{opacity:1;transform:scale(1)}
+.dio-clouds{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.dio-clouds i{position:absolute;width:340px;height:120px;border-radius:999px;background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,0));filter:blur(4px);animation:drift 60s linear infinite}
+.dio-clouds i:nth-child(1){top:12%;left:-20%;animation-duration:70s}
+.dio-clouds i:nth-child(2){top:62%;left:-30%;animation-duration:95s;animation-delay:-30s;width:460px}
+.dio-clouds i:nth-child(3){top:30%;left:-25%;animation-duration:120s;animation-delay:-70s;opacity:.7}
+.dio-clouds i:nth-child(4){top:82%;left:-20%;animation-duration:80s;animation-delay:-10s;width:520px}
+@keyframes drift{to{transform:translateX(160vw)}}
+.diorama:not(.entered) .dio-spot{display:none}
+.dio-tag .short{display:none}
+@media (prefers-reduced-motion:reduce){.dio-art,.dio-toy,.dio-clouds i,.dio-spot .ring::after{animation:none}}
+@media (max-width:760px){
+  .dio-spot .dio-tag{padding:4px 10px 4px 4px;bottom:18px}
+  .dio-spot .dio-tag img{width:28px;height:28px}
+  .dio-spot .dio-tag b{font-size:12.5px}
+  .dio-tag .long{display:none}.dio-tag .short{display:block}
+  .dio-spot .dio-tag em{display:none}
+}
+.dio-art{-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 9%);mask-image:linear-gradient(180deg,transparent 0,#000 9%)}
