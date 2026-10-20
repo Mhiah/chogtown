@@ -22,8 +22,8 @@ import { decodeEventLog, formatUnits, getAddress, parseAbi } from "viem";
 const V = 6; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
-const AUTO_MAIN_EVERY_MS = 12 * 60_000;
-const FIRST_MAIN_AFTER_MS = 3 * 60_000;
+const AUTO_MAIN_EVERY_MS = 6 * 60_000;
+const FIRST_MAIN_AFTER_MS = 2 * 60_000;
 
 export const STAGES = [
   { at: 0, name: "Cordial" }, { at: 20, name: "Side-eye" }, { at: 45, name: "Beef" }, { at: 70, name: "Public feud" }, { at: 90, name: "Main Event" },

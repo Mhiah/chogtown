@@ -10,6 +10,8 @@ export interface Session {
   guest?: boolean;
   /** stable id for votes and reactions */
   vid: string;
+  /** organizers' judge pass: may play any Chog, like a holder, without owning one */
+  judge?: boolean;
 }
 
 const COOKIE = "chogtown";

@@ -12,7 +12,9 @@ async function who() {
   let s: Session | null = await getSession();
   if (!s) { s = { vid: newVid() }; await setSession(s); }
   const name = s.tokenId ? label(await getChog(s.tokenId)) : null;
-  const perks = await perksOf(s.address);
+  const p = await perksOf(s.address);
+  // judges get the holder experience, high-roller table included
+  const perks = s.judge ? { ...p, highRoller: true } : p;
   return { s, name: name ?? "A guest", perks };
 }
 

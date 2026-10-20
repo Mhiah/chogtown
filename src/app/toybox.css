@@ -376,3 +376,8 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .onb-btns{display:flex;gap:10px;justify-content:center}
 .onb-btns .btn{min-width:120px}
 .top .help{width:40px;justify-content:center;font-family:var(--display);font-weight:600;font-size:18px;padding:0}
+.live-dna{border-radius:16px;padding:10px 12px;box-shadow:inset 0 0 0 2px #ece6ff;display:flex;flex-direction:column;gap:6px}
+.live-dna i{font-style:normal;color:var(--royal)}
+.dna-moves{display:flex;flex-wrap:wrap;gap:5px}
+.dna-moves span{font-size:12px;font-weight:800;color:var(--ink);background:#f3eeff;border-radius:10px;padding:3px 8px}
+.dna-moves em{font-style:normal;color:var(--rose);margin-right:4px}

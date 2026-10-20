@@ -18,11 +18,12 @@ export const CARDS = [
 const STAGE_NAMES = ["Cordial", "Side-eye", "Beef", "Public feud", "Main Event"];
 const ARCH: Record<string, string> = { critic: "Critic", hype: "Hype Beast", dreamer: "Dreamer", schemer: "Schemer", sweetheart: "Sweetheart", drama: "Drama Queen", brawler: "Brawler", knowitall: "Know-it-all" };
 
-type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number };
+type Dna = { personality: string; eyes: string; mouth: string; moves: { slot: string; what: string; trait: string }[] };
+type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number; dna?: Dna | null };
 const TIPS = [100, 1000, 10000];
 
-export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
-  id: number; x: number; y: number; live: LiveView | null; me: Me | null; onClose(): void; onPlayAs(id: number): Promise<void>; toast(t: string): void;
+export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toast }: {
+  id: number; x: number; y: number; live: LiveView | null; me: Me | null; onClose(): void; onPlayAs(id: number): Promise<void>; onSignIn(): void; toast(t: string): void;
 }) {
   const c = live?.chogs.find((k) => k.id === id);
   const mine = me?.tokenId === id;
@@ -75,8 +76,15 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
         {c.image && <img src={c.image} alt="" />}
         <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · being played" : ""}</em></div>
       </div>
+      {feud?.dna && (
+        <div className="live-dna" title="Everything this Chog does comes from its NFT traits">
+          <div className="live-feud-top"><span>Made by its traits</span></div>
+          <p className="live-note"><b>{feud.dna.personality}</b> because of its <i>{feud.dna.eyes || "eyes"}</i> eyes{feud.dna.mouth ? <> and <i>{feud.dna.mouth}</i> mouth</> : null}.</p>
+          <div className="dna-moves">{feud.dna.moves.map((m) => <span key={m.slot} title={m.trait}><em>{m.slot}</em>{m.what}</span>)}</div>
+        </div>
+      )}
       {mine && <p className="live-note">That's you. Tap anywhere on the island to walk, or tap another Chog to play a card on it.</p>}
-      {!mine && me?.tokenId && feud && (
+      {!mine && me?.canPlay && feud && (
         <div className="live-feud">
           <div className="live-feud-top"><span>Your feud</span><b className={`stage s${feud.stage}`}>{feud.name}</b></div>
           <div className="heat"><i style={{ width: `${feud.heat}%` }} /></div>
@@ -96,7 +104,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
       {!mine && playing && !taken && (
         <p className="live-note hint">{busy ? "Walking over…" : hint ?? ((feud?.stage ?? 0) < need ? (me?.holder ? "👑 Holders can Challenge from Side-eye. One roast gets you there." : "Roast or spread rumours to reach Beef. Then you can Challenge.") : "It's on. Challenge them to the Main Event.")}</p>
       )}
-      {!mine && me?.tokenId && !playing && <p className="live-note">Bring your Chog onto the island first (button at the top).</p>}
+      {!mine && me?.canPlay && !playing && <p className="live-note">Bring your Chog onto the island first (button at the top).</p>}
       {!mine && feud && (
         <div className="live-tip">
           <div className="live-feud-top"><span>🪙 $CHOG tips</span><b>{(feud.tips ?? 0).toLocaleString()}</b></div>
@@ -108,8 +116,11 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, toast }: {
           {canTip && feud.owner && <p className="live-note small">Goes straight to its holder, {short(feud.owner)}. Your wallet asks you to approve it.</p>}
         </div>
       )}
-      {!mine && !taken && (!me?.tokenId || !playing) && (
-        <button className="btn small" disabled={busy} onClick={async () => { setBusy(true); await onPlayAs(id); setBusy(false); onClose(); }}>Play as {c.name}</button>
+      {!mine && !taken && !playing && (me?.judge || (me?.held?.ids ?? []).includes(id)) && (
+        <button className="btn small" disabled={busy} onClick={async () => { setBusy(true); await onPlayAs(id); setBusy(false); onClose(); }}>{me?.judge ? "🎫 " : "👑 "}Play as {c.name}</button>
+      )}
+      {!me?.canPlay && !me?.judge && !(me?.held?.ids ?? []).includes(id) && (
+        <button className="btn small ghost" onClick={() => { onClose(); onSignIn(); }}>👑 Hold a Chog? Sign in to play</button>
       )}
     </div>,
     document.body,
@@ -121,9 +132,10 @@ export function PlayBar({ live, me, name, onJoin, onLeave, onSignIn }: { live: L
   const playing = !!me?.tokenId && live.players.includes(me.tokenId);
   return (
     <div className={`playbar${playing ? " on" : ""}`}>
-      {!me?.tokenId && <><span>Tap any Chog on the island to play as it</span><button className="btn small ghost" onClick={onSignIn}>Holder? Sign in 👑</button></>}
-      {me?.tokenId && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
-      {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}<span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
+      {!me?.canPlay && !me?.judge && <><span>👀 You're watching live</span><button className="btn small" onClick={onSignIn}>Have a Chog? Sign in 👑</button></>}
+      {me?.judge && !me.canPlay && <span>🎫 Judge pass: tap any Chog to play as it</span>}
+      {me?.canPlay && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
+      {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}{me?.judge && <span className="perk-tag">🎫 Judge</span>}<span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
     </div>
   );
 }

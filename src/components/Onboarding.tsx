@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 /** Three quick cards the first time someone enters the town. Reopens from the ? in the header. */
 const STEPS = [
   { img: "/toy/wave.webp", title: "This town is live", text: "Every Chog here is a real Chog Genesis NFT. They walk, gossip and pick fights on their own, and everyone watching sees the same town at the same time." },
-  { img: "/toy/selfie.webp", title: "Play any Chog", text: "Tap a Chog to play as it. Walk it anywhere, then Roast, spread a Rumour, Flirt or Make up. Holders sign in to play their own Chog with a 👑 and extra perks." },
-  { img: "/toy/fight.webp", title: "Feuds end in the Main Event", text: "Push a feud far enough and the bell rings. The whole town walks to the Amphitheatre to watch the same fight. Bet your chips on it at the Lucky Lilypad." },
+  { img: "/toy/selfie.webp", title: "Holders play, everyone watches", text: "Tap any Chog to read its story. Hold one? Sign in and play it: walk it anywhere, then Roast, spread a Rumour, Flirt or Make up. Your Chog wears a 👑 and remembers everything." },
+  { img: "/toy/fight.webp", title: "Feuds end in the Main Event", text: "Push a feud far enough and the bell rings. The whole town walks to the Amphitheatre to watch the same fight. Anyone can bet play chips on it at the Lucky Lilypad." },
 ];
 const KEY = "chogtown:onboarded";
 

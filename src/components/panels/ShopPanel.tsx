@@ -76,10 +76,10 @@ function Booth({ shell, goHome }: { shell: Shell; goHome(): void }) {
         <div><b>Your face fires your Chog</b><p className="note" style={{ marginTop: 4 }}>Raise your eyebrows to fire its eyes, open your mouth for its mouth power. 60 seconds of jeets. Your camera never leaves this browser.</p></div>
       </div>
       <div className="card">
-        <div className="row"><span className="k">Playing as</span><b>{id ? name : "a random Chog"}</b></div>
+        {shell.me?.canPlay && <div className="row"><span className="k">Playing as</span><b>{name}</b></div>}
         {best ? <div className="row"><span className="k">Best run</span><b className="num">{best.toLocaleString()}</b></div> : null}
-        <button className="btn block" style={{ minHeight: 52 }} onClick={() => setOpen(true)}>Open the Face Booth</button>
-        {!id && <p className="note">Bring your own Chog for scores that count. <button className="linkish" onClick={goHome}>Pick it in Chogmate</button></p>}
+        {shell.me?.canPlay ? <button className="btn block" style={{ minHeight: 52 }} onClick={() => setOpen(true)}>Open the Face Booth</button>
+          : <p className="note">👀 The Face Booth is for holders. <button className="linkish" onClick={goHome}>Sign in with your Chog</button> to play.</p>}
       </div>
       <p className="note">Top run of the day makes the Gazette. Best runs climb the Face Booth board in the Palace of Legends.</p>
       {open && createPortal(<FaceBooth tokenId={id} onClose={() => setOpen(false)} />, document.body)}

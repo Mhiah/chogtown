@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const want = Number(body?.tokenId);
   const tokenId = Number.isInteger(want) && want >= 1 && want <= CHOG_SUPPLY ? want : RESIDENT_IDS[0];
   await getChog(tokenId, { resident: true });
-  await setSession({ guest: true, tokenId, vid: prev?.vid ?? newVid() });
+  // guests visit to watch; a judge pass carries over so judges can play whichever Chog they pick
+  await setSession({ guest: true, tokenId, vid: prev?.vid ?? newVid(), ...(prev?.judge ? { judge: true } : {}) });
   return json({ tokenId });
 }

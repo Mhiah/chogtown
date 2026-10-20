@@ -46,6 +46,14 @@ export default function App() {
 
   const refreshMe = useCallback(async () => { setMe(await api<Me>("/api/me").catch(() => ({ address: null, tokenId: null, guest: false, held: null, ai: false }))); }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
+  // arriving from the judge link
+  useEffect(() => {
+    const j = new URLSearchParams(location.search).get("judge");
+    if (!j) return;
+    history.replaceState(null, "", location.pathname);
+    setEntered(true);
+    toast(j === "1" ? "🎫 Judge pass on. Tap any Chog on the island to play as it." : "That judge link didn't work. Check the code.");
+  }, [toast]);
   useEffect(() => { api<{ population: number }>("/api/town").then((d) => setPopulation(d.population)).catch(() => {}); }, []);
   useEffect(() => {
     const tick = () => {
@@ -67,17 +75,16 @@ export default function App() {
   }, [toast]);
   const playAs = useCallback(async (id: number) => {
     try {
-      if (me?.address) {
-        if (!(me.held?.ids ?? []).includes(id)) { toast("Signed in with a wallet, you play your own Chogs. Pick one in Your Chogmate."); return; }
-        await api("/api/me/chog", { tokenId: id });
-      } else await api("/api/auth/guest", { tokenId: id });
+      if (me?.address && (me.held?.ids ?? []).includes(id)) await api("/api/me/chog", { tokenId: id });
+      else if (me?.judge) await api("/api/auth/guest", { tokenId: id });
+      else { toast("Only holders play. Sign in with the wallet that holds this Chog."); open("home"); return; }
       await refreshMe();
       await api("/api/live/act", { kind: "join" });
       toast("You're on the island. Tap anywhere to walk, tap a Chog for cards.");
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   }, [me, refreshMe, toast]);
   const walk = useCallback((node: string) => {
-    if (!me?.tokenId || !live?.players.includes(me.tokenId)) return;
+    if (!me?.tokenId || !me.canPlay || !live?.players.includes(me.tokenId)) return;
     api("/api/live/act", { kind: "walk", node }).catch((e) => toast(e instanceof Error ? e.message : String(e)));
   }, [me, live, toast]);
 
@@ -93,7 +100,7 @@ export default function App() {
       <Diorama active={active} entered={entered} onOpen={open} bounceKey={bounceKey} mine={me?.tokenId ?? null}
         onChog={(id, x, y) => setPicked({ id, x, y })} onWalk={walk} onLive={onLive} />
       {entered && !active && <><PlayBar live={live} me={me} name={myName} onJoin={join} onLeave={() => setPicked(null)} onSignIn={() => open("home")} /><FeudTicker live={live} /></>}
-      {picked && <ChogCard id={picked.id} x={picked.x} y={picked.y} live={live} me={me} onClose={() => setPicked(null)} onPlayAs={playAs} toast={toast} />}
+      {picked && <ChogCard id={picked.id} x={picked.x} y={picked.y} live={live} me={me} onClose={() => setPicked(null)} onPlayAs={playAs} onSignIn={() => open("home")} toast={toast} />}
       <MainEvent live={live} offset={offset} toast={toast} />
       <Onboarding entered={entered && !active} open={help} onClose={() => setHelp(false)} />
       <header className="top">
@@ -133,14 +140,14 @@ export default function App() {
 
       <section className={`intro${entered ? " gone" : ""}`}>
         <div className="intro-inner">
-          <div className="eyebrow">Chogathon 2026 · A floating toy town</div>
+          <div className="eyebrow">A live reality show starring all 1,969 Chogs</div>
           <h1>Every Chog<br />has a <span>life.</span></h1>
-          <p>All 1,969 Chogs live here. By night they gossip and feud. By day you check in, fight your rivals in the Rumble and blast jeets with your face.</p>
+          <p>The cameras never stop. Chogs walk, gossip and pick fights on their own, and everyone watches the same town live. Holders step in with their own Chog: roast a rival, start a rumour, push a feud all the way to the Main Event.</p>
           <div className="btns">
-            <button className="btn" onClick={() => setEntered(true)}>Enter town →</button>
-            <button className="btn ghost" onClick={() => open("home")}>Visit any Chog</button>
+            <button className="btn" onClick={() => setEntered(true)}>Watch live →</button>
+            <button className="btn ghost" onClick={() => open("home")}>👑 Play your Chog</button>
           </div>
-          <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>{PLACES.length}</b><span>places</span></div><div><b>every night</b><span>new gossip</span></div></div>
+          <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>{PLACES.length}</b><span>places</span></div><div><b>every 6 min</b><span>a Main Event</span></div></div>
         </div>
       </section>
 

@@ -39,12 +39,16 @@ export async function verifyOwner(c: Chog, address: string, force = false) {
   return true;
 }
 
-/** The visitor's session and their Chog, if they may act as its owner (or explore it as a guest). */
+/** Who may play: holders playing their own Chog (checked on Monad when they picked it), and judges. Everyone else watches. */
+export const canPlay = (s: Session | null) => !!s && (!!s.judge || (!!s.address && !s.guest && !!s.tokenId));
+export const WATCH_ONLY = "You're watching. Sign in with a wallet that holds a Chog to play.";
+
+/** The visitor's session and their Chog, if they may act as its owner. Guests only watch; judges play like guests used to. */
 export async function actor(id: number): Promise<{ s: Session; c: Chog; guest: boolean } | { error: string; status: number }> {
   const s = await getSession();
   if (!s || s.tokenId !== id) return { error: "Pick this Chog first.", status: 401 };
   const c = await getChog(id);
-  if (s.guest) return { s, c, guest: true };
+  if (s.guest) return s.judge ? { s, c, guest: true } : { error: WATCH_ONLY, status: 403 };
   if (!s.address || !(await verifyOwner(c, s.address))) return { error: "This wallet no longer holds this Chog.", status: 403 };
   return { s, c, guest: false };
 }

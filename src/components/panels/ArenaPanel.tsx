@@ -34,12 +34,18 @@ function Rumble({ shell }: { shell: Shell }) {
   const load = useCallback(() => { api<ArenaData>("/api/arena").then(setD).catch((e) => setErr(errMsg(e))); }, []);
   useEffect(() => { load(); }, [load, shell.me?.tokenId]);
 
+  if (err && !shell.me?.canPlay) return (
+    <>
+      <p className="sub">Every Chog fights with what it was minted with. Its eyes are its attack, its mouth is its special, its head is its dash. Knock the other Chog off the stage three times.</p>
+      <div className="card"><p className="note" style={{ margin: 0 }}>👀 Fights are for holders. Sign in with your Chog in Your Chogmate to fight. Everyone can watch the Main Events, which the whole town sees live.</p></div>
+    </>
+  );
   if (err) return <p className="err">{err}</p>;
   if (!d) return <p className="sub">Sweeping the stage…</p>;
   if (!d.me) return (
     <>
       <p className="sub">Every Chog fights with what it was minted with. Its eyes are its attack, its mouth is its special, its head is its dash. Knock the other Chog off the stage three times.</p>
-      <div className="card"><p className="note" style={{ margin: 0 }}>Pick a Chog in Your Chogmate first. No Chog? Visit any of the 1,969 as a guest and fight an exhibition.</p></div>
+      <div className="card"><p className="note" style={{ margin: 0 }}>Sign in with your Chog in Your Chogmate to fight. No Chog? You can still watch every Main Event live.</p></div>
     </>
   );
   const callout = async () => {

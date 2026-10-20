@@ -40,15 +40,15 @@ function SignIn({ shell }: { shell: Shell }) {
         {err && <p className="err">{err}</p>}
       </div>
       <div className="card">
-        <div className="k">Just looking?</div>
-        <button className="btn ghost block" onClick={() => guest()} disabled={!!busy}>{busy === "guest" ? "Opening…" : "Look around as a guest"}</button>
+        <div className="k">Just watching?</div>
+        <button className="btn ghost block" onClick={() => guest()} disabled={!!busy}>{busy === "guest" ? "Opening…" : "Read a Chog's life"}</button>
         <form className="field" onSubmit={(e) => { e.preventDefault(); if (visit) guest(Number(visit)); }}>
           <label className="sr" htmlFor="visit-num">Visit any Chog by number</label>
           <input id="visit-num" inputMode="numeric" placeholder="or visit any Chog, 1 to 1969" value={visit} onChange={(e) => setVisit(e.target.value.replace(/\D/g, "").slice(0, 4))} />
           <button className="btn violet" disabled={!!busy || !visit}>Visit</button>
           <button type="button" className="btn ghost" disabled={!!busy} onClick={() => guest(1 + Math.floor(Math.random() * 1969))}>Random</button>
         </form>
-        <p className="note">Chat with any of the 1,969 Chogs and take it into the Amphitheatre. Only owners can shape a Chog or keep a streak.</p>
+        <p className="note">Read any of the 1,969 Chogs' lives: who they love, who they hate, what they did last night. Playing, chatting and fighting are for holders.</p>
       </div>
     </>
   );
@@ -145,7 +145,7 @@ function Chogmate({ shell, id }: { shell: Shell; id: number }) {
 
   return (
     <>
-      {me?.guest && <p className="note">You're a guest, visiting {chog.name}. Chats are just for fun here: only its owner shapes who it becomes.</p>}
+      {me?.guest && <p className="note">{me.judge ? `🎫 Judge pass: you're playing ${chog.name} for this visit. Only its real owner keeps the streak.` : `👀 You're reading ${chog.name}'s life. Only its holder can chat, check in and fight.`}</p>}
       <div className="card">
         <div className="who">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -188,7 +188,7 @@ function Chogmate({ shell, id }: { shell: Shell; id: number }) {
         {chog.moments[0] && <p className="note">Never forgets: {chog.moments[0].text}</p>}
       </div>
 
-      <div className="card">
+      {me?.canPlay && <div className="card">
         <div className="row"><div className="k">Chat</div><div className="k num">{left} left today</div></div>
         <div className="chat" ref={chatRef}>
           {msgs.length === 0 && greet && <div className="msg chog">{greet}</div>}
@@ -201,7 +201,7 @@ function Chogmate({ shell, id }: { shell: Shell; id: number }) {
           <button className="btn violet" type="submit" disabled={typing || !text.trim()}>Send</button>
         </form>
         {!me?.ai && <p className="note">Running without the AI key, so replies come from a small script.</p>}
-      </div>
+      </div>}
       <SignOut shell={shell} />
     </>
   );
