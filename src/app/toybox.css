@@ -226,7 +226,7 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
   .dio-spot .dio-tag em{display:none}
 }
 .dio-art{-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 9%);mask-image:linear-gradient(180deg,transparent 0,#000 9%)}
-.dio-live{position:absolute;pointer-events:none;animation:dioFloat 9s ease-in-out infinite;z-index:1}
+.dio-live{position:absolute;pointer-events:none;animation:dioFloat 9s ease-in-out infinite;z-index:3}
 /* with Chogs walking the island, place tags shrink to their icon and open on hover */
 .diorama .dio-spot .dio-tag{padding:4px;gap:0;transition:padding .25s,gap .25s,transform .25s}
 .diorama .dio-spot .dio-tag>span{max-width:0;overflow:hidden;transition:max-width .3s}
@@ -290,3 +290,10 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .live-cardbtn .e{font-size:18px;width:auto}
 .live-cardbtn b{font-size:14px}
 .live-note.hint{font-size:12px;min-height:2.6em}
+@media (max-width:700px){
+  .diorama .dio-spot .dio-tag img{width:26px;height:26px}
+  .dio-spot .ring{width:16px;height:16px;margin:-8px 0 0 -8px}
+  .diorama.entered .dio-toy{opacity:0;transition:opacity .4s}
+  .playbar{white-space:nowrap}
+}
+@media (max-width:700px){.playbar .hide-m{display:none}.playbar .show-m{display:inline}}

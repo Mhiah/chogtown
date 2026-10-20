@@ -97,7 +97,7 @@ export function PlayBar({ live, me, name, onJoin, onLeave }: { live: LiveView | 
     <div className={`playbar${playing ? " on" : ""}`}>
       {!me?.tokenId && <span>Tap any Chog on the island to play as it</span>}
       {me?.tokenId && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
-      {playing && <><span className="dot" /><span><b>{name ?? "Your Chog"}</b> is live. Tap the island to walk, tap a Chog for cards.</span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
+      {playing && <><span className="dot" /><span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
     </div>
   );
 }
