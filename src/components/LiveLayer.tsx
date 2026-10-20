@@ -166,7 +166,7 @@ export function PlayBar({ live, me, name, onJoin, onLeave, onSignIn }: { live: L
       {me?.judge && !me.canPlay && <span>🎫 Judge pass: tap any Chog to play as it</span>}
       {me?.canPlay && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
       {playing && <Shout />}
-      {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}{me?.judge && <span className="perk-tag">🎫 Judge</span>}<span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
+      {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}{me?.judge && <span className="perk-tag">🎫 Judge</span>}<span className="pb-text"><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
     </div>
   );
 }
