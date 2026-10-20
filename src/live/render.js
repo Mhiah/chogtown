@@ -42,7 +42,7 @@ export function drawIsland(ctx, sim, view, now, hover) {
   ctx.clearRect(0, 0, W, H);
   const list = sim.chogs.filter((c) => c.out || c.fade > 0).map((c) => ({ c, p: sim.where(c, which) })).sort((a, b) => a.p.y - b.p.y);
   const hits = [];
-  const bubbles = [];
+  const bubbles = [], tags = [];
   for (const { c, p } of list) {
     const x = p.x * W, y = p.y * H;
     const depth = which === 't' ? .8 + (p.y - .5) * 1.4 : .78 + (p.y - .45) * 1.3;
@@ -96,6 +96,7 @@ export function drawIsland(ctx, sim, view, now, hover) {
     ctx.globalAlpha = 1;
     const top = y - bob - s * .27 - ch;
     hits.push({ id: c.id, x: x - s * .6, y: top, w: s * 1.2, h: s * 1.35 });
+    if (c.player) tags.push({ c, x, y: y + s * .16, s });
     if (c.bubble) bubbles.push({ c, x, y: top - 4, s });
     if (hover === c.id && !c.bubble) bubbles.push({ c, x, y: top - 4, s, tag: true });
   }
@@ -104,9 +105,24 @@ export function drawIsland(ctx, sim, view, now, hover) {
     for (const n of NODES) { const [nx, ny] = n[which]; ctx.beginPath(); ctx.arc(nx * W, ny * H, 4, 0, 7); ctx.fill(); ctx.fillText(n.id, nx * W + 6, ny * H - 6); }
   }
   // bubbles on top of everyone
+  // live players wear a name tag under their Chog
+  for (const t of tags) nameTag(ctx, t);
   const placed = [];
   for (const b of bubbles) bubble(ctx, b, now, W, placed);
   return hits;
+}
+
+function nameTag(ctx, { c, x, y, s }) {
+  const fs = Math.max(10, Math.min(12, s * .3));
+  ctx.save();
+  ctx.font = `800 ${fs}px Nunito, system-ui, sans-serif`;
+  const label = c.mine ? 'You' : c.name;
+  const w = ctx.measureText(label).width + fs * 1.2, h = fs * 1.6;
+  ctx.fillStyle = c.mine ? ROSE : ROYAL;
+  rr(ctx, x - w / 2, y, w, h, h / 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, x, y + h / 2 + .5);
+  ctx.restore();
 }
 
 function bubble(ctx, { c, x, y, s, tag }, now, W, placed) {

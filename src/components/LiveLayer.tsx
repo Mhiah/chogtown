@@ -86,7 +86,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
       <button className="live-x" onClick={onClose} aria-label="Close">✕</button>
       <div className="live-card-head">
         {c.image && <img src={c.image} alt="" />}
-        <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · being played" : ""}</em></div>
+        <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · 🎮 a player" : ""}</em></div>
       </div>
       {feud?.dna && (
         <div className="live-dna" title="Everything this Chog does comes from its NFT traits">
@@ -104,7 +104,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
           {feud.log.length > 0 && <p className="live-note">“{feud.log[feud.log.length - 1]}”</p>}
         </div>
       )}
-      {!mine && playing && !taken && (
+      {!mine && playing && (
         <div className="live-cards">
           {CARDS.map((k) => (
             <button key={k.key} className={`live-cardbtn${k.key === "challenge" ? " wide" : ""}`} disabled={busy || (k.key === "challenge" && (feud?.stage ?? 0) < need) || !!live?.main && !live.main.done}
@@ -114,7 +114,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
           ))}
         </div>
       )}
-      {!mine && playing && !taken && !!me?.powers?.length && (
+      {!mine && playing && !!me?.powers?.length && (
         <div className="live-cards powers">
           {me.powers.map((k) => {
             const pc = POWER_CARDS[k]; if (!pc) return null;
@@ -129,7 +129,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
           })}
         </div>
       )}
-      {!mine && playing && !taken && (
+      {!mine && playing && (
         <p className="live-note hint">{busy ? "Walking over…" : hint ?? ((feud?.stage ?? 0) < need ? (me?.holder ? "👑 Holders can Challenge from Side-eye. One roast gets you there." : "Roast or spread rumours to reach Beef. Then you can Challenge.") : "It's on. Challenge them to the Main Event.")}</p>
       )}
       {!mine && me?.canPlay && !playing && <p className="live-note">Bring your Chog onto the island first (button at the top).</p>}
@@ -163,6 +163,7 @@ export function PlayBar({ live, me, name, onJoin, onLeave, onSignIn }: { live: L
       {!me?.canPlay && !me?.judge && <><span>👀 You're watching live</span><button className="btn small" onClick={onSignIn}>Have a Chog? Sign in 👑</button></>}
       {me?.judge && !me.canPlay && <span>🎫 Judge pass: tap any Chog to play as it</span>}
       {me?.canPlay && !playing && <><span>Play as <b>{name ?? `#${me.tokenId}`}</b>?</span><button className="btn small" onClick={onJoin}>Bring it onto the island</button></>}
+      {playing && <Shout />}
       {playing && <><span className="dot" />{me?.holder && <span className="perk-tag">👑 Holder</span>}{me?.judge && <span className="perk-tag">🎫 Judge</span>}<span><b>{name ?? "Your Chog"}</b> is live<span className="hide-m">. Tap the island to walk, tap a Chog for cards.</span><span className="show-m"> · tap to walk</span></span><button className="btn small ghost" onClick={onLeave}>Switch</button></>}
     </div>
   );
@@ -310,5 +311,24 @@ function MainStage({ m, now, local, picked, onPick, onClose }: { m: MainView; no
       <button className="rumble-x" aria-label="Back to the island" onClick={onClose}>✕</button>
     </div>,
     document.body,
+  );
+}
+
+/** Say your own line: your Chog shouts it to the whole town. */
+function Shout() {
+  const [t, setT] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!t.trim() || busy) return;
+    setBusy(true); setErr("");
+    try { await api("/api/live/act", { kind: "shout", text: t }); setT(""); } catch (x) { setErr(errMsg(x)); setTimeout(() => setErr(""), 2500); }
+    setBusy(false);
+  };
+  return (
+    <form className="shout" onSubmit={send} onClick={(e) => e.stopPropagation()}>
+      <input value={t} maxLength={80} placeholder={err || "📣 Shout something…"} aria-label="Shout something to the town" onChange={(e) => setT(e.target.value)} className={err ? "err" : ""} />
+      <button className="btn small" disabled={busy || !t.trim()}>Say</button>
+    </form>
   );
 }

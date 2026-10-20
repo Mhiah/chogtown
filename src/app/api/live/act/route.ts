@@ -1,6 +1,6 @@
 import { json, fail, canPlay, WATCH_ONLY } from "@/lib/api";
 import { getSession, setSession, newVid } from "@/lib/session";
-import { join, walk, play, pickSide, ringNow, CARDS, type AnyCard } from "@/live/island";
+import { join, walk, play, pickSide, ringNow, shout, CARDS, type AnyCard } from "@/live/island";
 import { POWERS } from "@/lib/powers";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,7 @@ export async function POST(req: Request) {
   let r: { ok: boolean; error?: string };
   if (b.kind === "join") r = await join(s.vid, s.tokenId);
   else if (b.kind === "walk" && typeof b.node === "string") r = await walk(s.vid, s.tokenId, b.node);
+  else if (b.kind === "shout" && typeof b.text === "string") r = await shout(s.vid, s.tokenId, b.text);
   // a holder signed in with the wallet that owns this Chog (checked on Monad when they picked it)
   else if (b.kind === "card" && Number.isInteger(b.target) && (b.card in CARDS || b.card in POWERS)) r = await play(s.vid, s.tokenId, b.target, b.card as AnyCard, (!!s.address && !s.guest) || !!s.judge);
   else return fail("Unknown action.");

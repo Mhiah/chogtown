@@ -215,6 +215,25 @@ export async function walk(vid: string, id: number, node: string) {
 
 type Line = { by: "a" | "b"; text: string };
 
+// Shout: a player's own line, said out loud by their Chog. Short, no links, nothing rude.
+const RUDE = /\b(f+u+c+k+|sh[i1]t+|b[i1]tch|c+u+n+t+|n[i1]gg|fag|retard(ed)?|kys|rape|porn|dick|pussy|whore|slut)\w*/gi;
+export async function shout(vid: string, id: number, text: string) {
+  const I = await island();
+  const p = lease(I, vid, id) as (ReturnType<typeof lease> & { shoutAt?: number }) | null;
+  if (!p) return { ok: false, error: "Bring your Chog onto the island first." };
+  if (p.shoutAt && Date.now() - p.shoutAt < 8000) return { ok: false, error: "Give it a few seconds between shouts." };
+  let t = text.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!t) return { ok: false, error: "Say something first." };
+  t = t.replace(RUDE, (w) => w[0] + "*".repeat(Math.max(2, w.length - 1)));
+  const c = I.sim.byId[id];
+  if (!c?.out) return { ok: false, error: "Your Chog isn't out on the island." };
+  c.bubble = { text: t, emote: "📣", t0: I.sim.t, until: I.sim.t + Math.max(4, Math.min(7, t.length / 12)) };
+  p.shoutAt = Date.now();
+  I.changed = -1;
+  bump("shouts").catch(() => {});
+  return { ok: true, text: t };
+}
+
 /** Play an intention card on another Chog: your Chog walks over, the AI writes the scene, the feud moves. */
 /** holder: the player verified on Monad that they own this Chog; they can call rivals out from Side-eye. */
 export async function play(vid: string, id: number, target: number, card: AnyCard, holder = false) {
@@ -237,6 +256,8 @@ export async function play(vid: string, id: number, target: number, card: AnyCar
   }
   const tgt = I.sim.byId[target];
   if (!tgt?.out || tgt.leaving) return { ok: false, error: "That Chog just went inside." };
+  // other players' Chogs are fair game, unless they're mid-scene
+  if (tgt.player && (I.players.get(target)?.busy || tgt.talking)) return { ok: false, error: "They're busy in a scene. Try again in a moment." };
   if (I.sim.rally) return { ok: false, error: "Shh, the Main Event is on." };
   const sc = I.sim.scene(id, target, null, () => {
     p.busy = false;
