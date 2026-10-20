@@ -107,6 +107,13 @@ const SKIN: Record<string, string> = {
 const TIER_POWER: Record<string, number> = { Common: 1, Uncommon: 1.03, Rare: 1.07, Epic: 1.11, Legendary: 1.16 };
 
 export function kitFor(id: number, t: Traits): Kit {
+  // The ten 1:1 Legendaries have hand-drawn art and almost no traits: give them a signature kit.
+  if (t.Base === "1:1") return {
+    eyes: { kind: "laser", name: "Legendary fire beam", color: "#ff7a2b" }, mouth: { kind: "puke", name: "Rainbow puke" },
+    dash: { kind: "gore", name: "Legendary gore" }, body: { perk: "armor", name: "1:1 Legendary: heavy", mass: 1.25, speed: 1.02 },
+    aura: { kind: "burn", name: "Legendary aura: hits burn", color: "#ff8a3d" }, acc: { kind: "lucky", name: "Legendary luck: crits" },
+    power: 1.16, skin: "#ffd45c", faces: 1,
+  };
   const bd = body(t.Body, id);
   const au = aura(t.Aura);
   if (au.kind === "heavy") bd.mass *= 1.12;
