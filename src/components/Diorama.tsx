@@ -15,18 +15,18 @@ import { PLACES } from "./types";
  */
 
 type Spot = { x: number; y: number };
-type Art = { src: string; w: number; h: number; spots: Record<PlaceKey, Spot>; toy: Spot & { size: number }; islet: { x: number; y: number; w: number } };
+type Art = { src: string; night: string; w: number; h: number; spots: Record<PlaceKey, Spot>; toy: Spot & { size: number }; islet: { x: number; y: number; w: number } };
 
 // Spot and toy positions are fractions of each image (0..1), measured on the renders.
 export const WIDE: Art = {
-  src: "/town/island.jpg", w: 2752, h: 1536,
+  src: "/town/island.jpg", night: "/town/island-night.jpg", w: 2752, h: 1536,
   spots: { home: { x: .704, y: .5 }, arena: { x: .568, y: .33 }, feed: { x: .83, y: .16 }, hall: { x: .554, y: .55 }, shop: { x: .905, y: .52 }, casino: { x: .4, y: .27 } },
   toy: { x: .37, y: .86, size: .12 },
   // the casino floats on its own islet over the little treed one in the render (x: centre, y: top, w: width)
   islet: { x: .4, y: .06, w: .16 },
 };
 export const TALL: Art = {
-  src: "/town/island-tall.jpg", w: 1290, h: 2311,
+  src: "/town/island-tall.jpg", night: "/town/island-tall-night.jpg", w: 1290, h: 2311,
   spots: { home: { x: .5, y: .62 }, arena: { x: .5, y: .47 }, feed: { x: .82, y: .4 }, hall: { x: .18, y: .67 }, shop: { x: .77, y: .7 }, casino: { x: .2, y: .37 } },
   toy: { x: .5, y: .82, size: .2 },
   islet: { x: .2, y: .3, w: .3 },
@@ -52,6 +52,19 @@ function fitWidth(art: Art, W: number, H: number) {
 
 export interface DioramaHandle { bounce(): void }
 
+/**
+ * How dark the town is, 0 (day) to 1 (night), on UTC time like the server's night (19:00–06:00):
+ * dusk fades in from 18:00, dawn fades out until 07:00. ?night=1 or ?night=0 forces it, for testing and demos.
+ */
+function nightLevel(d = new Date()) {
+  try { const q = new URLSearchParams(location.search).get("night"); if (q === "1") return 1; if (q === "0") return 0; } catch {}
+  const h = d.getUTCHours() + d.getUTCMinutes() / 60;
+  if (h >= 19 || h < 6) return 1;
+  if (h >= 18) return h - 18;
+  if (h < 7) return 7 - h;
+  return 0;
+}
+
 export interface LiveView {
   now: number; t: number; rally: boolean; players: number[];
   feuds: { a: number; b: number; an: string; bn: string; heat: number; stage: number }[];
@@ -70,6 +83,8 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<PlaceKey | null>(null);
   const [jump, setJump] = useState(0);
+  const [night, setNight] = useState(0);
+  useEffect(() => { const t = () => setNight(nightLevel()); t(); const i = setInterval(t, 30_000); return () => clearInterval(i); }, []);
   const live = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<any>(null);
   const hits = useRef<{ id: number; x: number; y: number; w: number; h: number }[]>([]);
@@ -186,12 +201,13 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
   }, []);
 
   return (
-    <div ref={box} onClick={tap} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}${chogTag ? " chog-hot" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
+    <div ref={box} onClick={tap} style={{ ["--night" as string]: night }} className={`diorama${night > .5 ? " is-night" : ""}${active ? " focused" : ""}${entered ? " entered" : ""}${chogTag ? " chog-hot" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
       <div className={`dio-world${dive ? " dive" : ""}`} style={{
         transform: dive ? "scale(1.85)" : `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})`,
         transformOrigin: dive ? `${c.x + art.spots.arena.x * c.w}px ${c.y + (art.spots.arena.y + .1) * c.h}px` : undefined,
       }}>
         <img className="dio-art" src={art.src} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} draggable={false} />
+        {night > 0 && <img className="dio-art dio-night" src={art.night} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h, opacity: night }} draggable={false} />}
         <img className="dio-islet" src="/town/casino-islet.webp" alt="" draggable={false}
           style={{ left: c.x + (art.islet.x - art.islet.w / 2) * c.w, top: c.y + art.islet.y * c.h, width: art.islet.w * c.w }} />
         <canvas ref={live} className={`dio-live${chogTag ? " hot" : ""}`} aria-hidden="true" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} />
@@ -210,6 +226,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
         <div key={p.key} className={`dio-close${active === p.key ? " on" : ""}`} style={{ backgroundImage: `url(${CLOSE[p.key]})` }} aria-hidden="true" />
       ))}
       <div className="dio-clouds" aria-hidden="true"><i /><i /><i /><i /></div>
+      {night > 0 && <div className="dio-stars" aria-hidden="true" style={{ opacity: night }} />}
     </div>
   );
 }
