@@ -297,3 +297,58 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
   .playbar{white-space:nowrap}
 }
 @media (max-width:700px){.playbar .hide-m{display:none}.playbar .show-m{display:inline}}
+.dio-islet{position:absolute;pointer-events:none;filter:drop-shadow(0 26px 22px rgba(74,36,176,.22));animation:dioFloat 7s ease-in-out infinite;animation-delay:-2.5s}
+@media (prefers-reduced-motion:reduce){.dio-islet{animation:none}}
+
+/* ---------- the Lucky Lilypad ---------- */
+.chips-bar{display:flex;align-items:baseline;gap:8px;background:#2b1b5a;color:#fff;border-radius:20px;padding:12px 16px;box-shadow:0 5px 0 #160c36;flex-wrap:wrap}
+.chips-bar .coin{font-size:22px}
+.chips-bar b{font-family:var(--display);font-weight:600;font-size:28px;color:#ffbf3c;line-height:1}
+.chips-bar span{font-weight:800}
+.chips-bar em{font-style:normal;font-size:12px;font-weight:700;color:#cbb9ff;margin-left:auto}
+.slots{gap:14px;align-items:stretch}
+.reels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:linear-gradient(180deg,#7b4cf0,#5a2fd6);border-radius:22px;padding:12px;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18),0 6px 0 #3f1fa8}
+.reel{aspect-ratio:1;background:#fff;border-radius:16px;display:grid;place-items:center;font-size:44px;box-shadow:inset 0 -5px 0 #e9e1ff;overflow:hidden}
+.reel img{width:64%;height:64%;object-fit:contain}
+.reel.spin>*{animation:reelBlur .14s linear infinite}
+@keyframes reelBlur{0%{transform:translateY(-30%);filter:blur(2px);opacity:.6}100%{transform:translateY(30%);filter:blur(2px);opacity:.6}}
+.reels.won{animation:winPulse .6s ease-in-out 3}
+.reels.jackpot{animation:winPulse .5s ease-in-out 8;background:linear-gradient(180deg,#ffbf3c,#ff7aa8)}
+@keyframes winPulse{50%{transform:scale(1.03);box-shadow:0 0 0 6px rgba(255,191,60,.5),0 6px 0 #3f1fa8}}
+.slot-line{text-align:center;font-weight:800;color:var(--ink);min-height:22px}
+.slot-line b{color:#1aa35a;font-family:var(--display);font-size:18px;margin-left:4px}
+.slot-line span{color:#e0245e;margin-left:4px}
+.slot-row{display:flex;gap:10px;align-items:center}
+.bet-pick{display:flex;gap:6px;flex:1}
+.bet-pick button{flex:1;min-height:40px;border:0;border-radius:12px;background:#fff;font-family:var(--display);font-weight:600;font-size:15px;color:var(--ink2);cursor:pointer;box-shadow:inset 0 0 0 2px #ece6ff}
+.bet-pick button[aria-checked="true"]{background:#2b1b5a;color:#ffbf3c;box-shadow:none}
+.spin-btn{min-width:120px}
+.paytable{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:15px}
+.paytable>span{display:flex;align-items:center;gap:1px;background:#fff;border-radius:12px;padding:5px 10px}
+.paytable>span>b{margin-left:auto;font-family:var(--display);font-weight:600;color:var(--royal)}
+.paytable img{width:17px;height:17px;object-fit:contain;vertical-align:-3px}
+.paytable>.wide{grid-column:1/-1;display:block;font-size:12px;font-weight:700;color:var(--ink2);background:none;padding:2px 0;line-height:1.5}
+.paytable>.wide b{margin:0}
+.book{gap:12px}
+.book-head{font-family:var(--display);font-weight:600;color:#e0245e}
+.book-sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.book-side{background:#fff;border-radius:18px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;box-shadow:inset 0 0 0 2px #ece6ff}
+.book-side.mine{box-shadow:inset 0 0 0 3px var(--rose)}
+.book-side img{width:64px;height:64px;border-radius:16px}
+.book-side b{font-family:var(--display);font-weight:600;color:var(--ink)}
+.book-side em{font-style:normal;font-size:12px;font-weight:700;color:var(--ink2)}
+.book-side .odds{font-family:var(--display);font-weight:600;font-size:20px;color:var(--royal)}
+.book-side .pool{font-size:12px;font-weight:700;color:var(--muted)}
+.book-side .btn{margin-top:6px;width:100%}
+.book-empty{flex-direction:row;align-items:center;gap:12px}
+.book-empty img{width:84px;flex:none}
+.book-empty p{margin:0;font-weight:600;color:var(--ink2);line-height:1.45}
+.book-empty b{color:var(--ink)}
+/* six places: the dock squeezes to fit small phones */
+@media (max-width:700px){
+  .dock{gap:5px;padding:6px;max-width:calc(100% - 16px)}
+  .dock button{width:auto;flex:1 1 0;min-width:0;max-width:62px;height:58px}
+  .dock button img{width:36px;height:36px}
+}
+@media (max-width:700px){.main-live{top:calc(150px + env(safe-area-inset-top,0px));font-size:12px}}
+.main-banner>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media (max-width:700px){.main-banner{width:calc(100% - 24px)}}

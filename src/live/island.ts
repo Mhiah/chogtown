@@ -14,8 +14,9 @@ import { ARCHETYPES } from "@/lib/personality";
 import { askJSON, obj, str } from "@/lib/claude";
 import { today } from "@/lib/config";
 import type { TownEvent } from "@/lib/night";
+import { adjust } from "@/lib/casino";
 
-const V = 3; // bump to replace a running island in dev
+const V = 5; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
 const AUTO_MAIN_EVERY_MS = 12 * 60_000;
@@ -41,6 +42,7 @@ interface Main {
   bellAt: number; startAt: number; endAt: number;
   winner: "a" | "b"; result: Record<string, number | boolean>;
   picks: Record<string, "a" | "b">; done: boolean;
+  bets: Record<string, { side: "a" | "b"; amount: number; name: string }>;
 }
 type Send = (event: string, data: unknown) => void;
 
@@ -50,7 +52,7 @@ const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 function boot() {
   const st = {
     v: V, sim: null as any, chogs: new Map<number, Chog>(), feuds: new Map<string, Feud>(),
-    main: null as Main | null, lastMain: null as Main | null, nextMain: Date.now() + FIRST_MAIN_AFTER_MS,
+    main: null as Main | null, lastMain: null as Main | null, recent: [] as string[], nextMain: Date.now() + FIRST_MAIN_AFTER_MS,
     clients: new Set<Send>(), players: new Map<number, { vid: string; until: number; busy: boolean; cool: number }>(),
     seen: 0, changed: -1, lastSent: 0, timer: null as ReturnType<typeof setInterval> | null, ready: null as Promise<void> | null,
   };
@@ -118,7 +120,7 @@ export function view(I: Island) {
 function mainView(m: Main | null) {
   if (!m) return null;
   const n = { a: 0, b: 0 }; for (const s of Object.values(m.picks)) n[s]++;
-  return { id: m.id, a: m.a, b: m.b, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, done: m.done, winner: m.done ? m.winner : null };
+  return { id: m.id, a: m.a, b: m.b, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, pool: pools(m), done: m.done, winner: m.done ? m.winner : null };
 }
 
 function broadcast(I: Island) {
@@ -278,6 +280,49 @@ function fallbackLines(a: Chog, b: Chog, card: CardKey, about: Chog | null, acce
 
 /* ---------- the Main Event ---------- */
 
+// the Lucky Lilypad seeds each side of the book so the first bet always has odds
+const HOUSE_SEED = 100;
+function pools(m: Main) {
+  const p = { a: HOUSE_SEED, b: HOUSE_SEED };
+  for (const x of Object.values(m.bets ?? {})) p[x.side] += x.amount;
+  return p;
+}
+
+/** Bet play chips on a Main Event side. Winners split the whole pool. */
+export async function betMain(vid: string, side: "a" | "b", amount: number, name: string) {
+  const I = await island();
+  const m = I.main;
+  if (!m || m.done) return { ok: false, error: "No Main Event to bet on right now. The bell rings every few minutes." };
+  if (Date.now() > m.startAt + 10_000) return { ok: false, error: "Betting closed once the fight got going." };
+  const prev = m.bets[vid];
+  if (prev && prev.side !== side) return { ok: false, error: `You already backed ${(prev.side === "a" ? m.a : m.b).name}. No switching sides.` };
+  const left = await adjust(vid, -amount, name);
+  if (left === null) return { ok: false, error: "Not enough chips. Spin the slots or come back tomorrow." };
+  m.bets[vid] = { side, amount: (prev?.amount ?? 0) + amount, name };
+  m.picks[vid] = side;
+  I.changed = -1; // tell viewers the odds moved
+  return { ok: true, chips: left, bet: m.bets[vid], pool: pools(m) };
+}
+
+/** This viewer's bet on the current Main Event, if any. */
+export async function myBet(vid: string) {
+  const m = (await island()).main;
+  const b = m && !m.done ? m.bets?.[vid] : null;
+  return b ? { id: m!.id, side: b.side, amount: b.amount } : null;
+}
+
+async function settleBets(m: Main) {
+  const p = pools(m), total = p.a + p.b, win = p[m.winner];
+  let top: { name: string; paid: number } | null = null;
+  for (const [vid, b] of Object.entries(m.bets)) {
+    if (b.side !== m.winner) continue;
+    const paid = Math.floor(b.amount * total / win);
+    await adjust(vid, paid).catch(() => null);
+    if (!top || paid > top.paid) top = { name: b.name, paid };
+  }
+  return top;
+}
+
 async function bookMain(I: Island, aId: number, bId: number, why: string, lead = BELL_TO_FIGHT_MS) {
   if (I.main) return null;
   const [a, b] = await Promise.all([chogFor(I, aId), chogFor(I, bId)]);
@@ -290,9 +335,10 @@ async function bookMain(I: Island, aId: number, bId: number, why: string, lead =
   const m: Main = {
     id: `${aId}-${bId}-${seed}`, a: fa, b: fb, seed, why, bellAt, startAt,
     endAt: startAt + Math.ceil(result.ticks / 60 * 1000) + 1500,
-    winner: result.won ? "a" : "b", result, picks: {}, done: false,
+    winner: result.won ? "a" : "b", result, picks: {}, done: false, bets: {},
   };
   I.main = m;
+  I.recent = [key(aId, bId), ...(I.recent ?? [])].slice(0, 4);
   I.nextMain = Date.now() + AUTO_MAIN_EVERY_MS;
   gazette(`MAIN EVENT: ${label(a)} vs ${label(b)} at the Royal Amphitheatre. ${why}`, [aId, bId]);
   return m;
@@ -302,12 +348,16 @@ async function bookMain(I: Island, aId: number, bId: number, why: string, lead =
 async function autoMain(I: Island) {
   I.nextMain = Date.now() + AUTO_MAIN_EVERY_MS;
   const out = new Set(I.sim.chogs.filter((c: { out: boolean }) => c.out).map((c: { id: number }) => c.id));
-  const hot = [...I.feuds.values()].filter((f) => I.chogs.has(f.a) && I.chogs.has(f.b)).sort((x, y) => (y.heat + (out.has(y.a) ? 5 : 0)) - (x.heat + (out.has(x.a) ? 5 : 0)))[0];
+  // the hottest feud that hasn't just been settled; if nothing's really hot, draw a grudge match
+  I.recent ??= [];
+  const hot = [...I.feuds.values()].filter((f) => f.heat >= 20 && I.chogs.has(f.a) && I.chogs.has(f.b) && !I.recent.includes(key(f.a, f.b)))
+    .sort((x, y) => (y.heat + (out.has(y.a) ? 5 : 0)) - (x.heat + (out.has(x.a) ? 5 : 0)))[0];
   if (hot) return bookMain(I, hot.a, hot.b, `The island's hottest feud (${STAGES[stageOf(hot.heat)].name}).`);
   const ids = [...out] as number[];
   if (ids.length < 2) return null;
-  const x = pick(ids);
-  return bookMain(I, x, pick(ids.filter((y) => y !== x)), "Grudge match drawn from the hat.");
+  let x = pick(ids), y = pick(ids.filter((z) => z !== x));
+  for (let i = 0; i < 8 && I.recent.includes(key(x, y)); i++) { x = pick(ids); y = pick(ids.filter((z) => z !== x)); }
+  return bookMain(I, x, y, "Grudge match drawn from the hat.");
 }
 
 async function finishMain(I: Island, m: Main) {
@@ -320,6 +370,8 @@ async function finishMain(I: Island, m: Main) {
   if (f) { f.heat = 10; f.log = [...f.log, `Settled at the Main Event: ${(r.won ? a : b).name} won.`].slice(-6); store().set("feuds", key(a.id, b.id), f).catch(() => {}); }
   const w = r.won ? a : b, l = r.won ? b : a;
   if (I.sim.byId[w.id]) I.sim.byId[w.id].bubble = { text: "WHO'S NEXT?!", emote: "🏆", t0: I.sim.t, until: I.sim.t + 5 };
+  const top = await settleBets(m).catch((e) => { console.error("settle bets", e); return null; });
+  if (top && top.paid >= 300) gazette(`${top.name} won ${top.paid.toLocaleString()} chips at the Lucky Lilypad backing ${w.name} in the Main Event.`, [w.id, l.id], "chaos");
   const callers = Object.values(m.picks).filter((s) => s === m.winner).length, total = Object.keys(m.picks).length;
   if (total) gazette(`${callers} of ${total} viewers called ${w.name}'s win over ${l.name} at the Main Event.`, [w.id, l.id], "chaos");
 }

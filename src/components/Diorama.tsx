@@ -15,23 +15,26 @@ import { PLACES } from "./types";
  */
 
 type Spot = { x: number; y: number };
-type Art = { src: string; w: number; h: number; spots: Record<PlaceKey, Spot>; toy: Spot & { size: number } };
+type Art = { src: string; w: number; h: number; spots: Record<PlaceKey, Spot>; toy: Spot & { size: number }; islet: { x: number; y: number; w: number } };
 
 // Spot and toy positions are fractions of each image (0..1), measured on the renders.
 export const WIDE: Art = {
   src: "/town/island.jpg", w: 2752, h: 1536,
-  spots: { home: { x: .704, y: .5 }, arena: { x: .568, y: .33 }, feed: { x: .83, y: .16 }, hall: { x: .554, y: .55 }, shop: { x: .905, y: .52 } },
+  spots: { home: { x: .704, y: .5 }, arena: { x: .568, y: .33 }, feed: { x: .83, y: .16 }, hall: { x: .554, y: .55 }, shop: { x: .905, y: .52 }, casino: { x: .4, y: .27 } },
   toy: { x: .37, y: .86, size: .12 },
+  // the casino floats on its own islet over the little treed one in the render (x: centre, y: top, w: width)
+  islet: { x: .4, y: .06, w: .16 },
 };
 export const TALL: Art = {
   src: "/town/island-tall.jpg", w: 1290, h: 2311,
-  spots: { home: { x: .5, y: .62 }, arena: { x: .5, y: .47 }, feed: { x: .82, y: .4 }, hall: { x: .18, y: .67 }, shop: { x: .77, y: .7 } },
+  spots: { home: { x: .5, y: .62 }, arena: { x: .5, y: .47 }, feed: { x: .82, y: .4 }, hall: { x: .18, y: .67 }, shop: { x: .77, y: .7 }, casino: { x: .2, y: .37 } },
   toy: { x: .5, y: .82, size: .2 },
+  islet: { x: .2, y: .3, w: .3 },
 };
-const CLOSE: Record<PlaceKey, string> = { home: "/town/home.jpg", arena: "/town/arena.jpg", feed: "/town/feed.jpg", hall: "/town/hall.jpg", shop: "/town/shop.jpg" };
+const CLOSE: Record<PlaceKey, string> = { home: "/town/home.jpg", arena: "/town/arena.jpg", feed: "/town/feed.jpg", hall: "/town/hall.jpg", shop: "/town/shop.jpg", casino: "/town/casino.jpg" };
 const BLURB: Record<PlaceKey, string> = {
   home: "Check in, chat, see who it is becoming", arena: "Rumble your rivals · tonight's debate", feed: "Last night's gossip",
-  hall: "Streaks, wins and feuds", shop: "Face Booth & dress-up",
+  hall: "Streaks, wins and feuds", shop: "Face Booth & dress-up", casino: "Chog Slots & Main Event bets",
 };
 
 /** Where an image drawn with object-fit: cover lands in a box, so spots can sit on the art. */
@@ -53,7 +56,7 @@ export interface LiveView {
   main: MainView | null; lastMain: MainView | null;
   chogs: { id: number; name: string; archetype: string; image: string | null; out: boolean }[];
 }
-export interface MainView { id: string; a: any; b: any; seed: number; why: string; bellAt: number; startAt: number; endAt: number; picks: { a: number; b: number }; done: boolean; winner: "a" | "b" | null }
+export interface MainView { id: string; a: any; b: any; seed: number; why: string; bellAt: number; startAt: number; endAt: number; picks: { a: number; b: number }; pool?: { a: number; b: number }; done: boolean; winner: "a" | "b" | null }
 
 export default function Diorama({ active, entered, onOpen, bounceKey, mine, onChog, onWalk, onLive }: {
   active: PlaceKey | null; entered: boolean; onOpen(k: PlaceKey): void; bounceKey: number;
@@ -166,6 +169,8 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
     <div ref={box} onClick={tap} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}${chogTag ? " chog-hot" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
       <div className="dio-world" style={{ transform: `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})` }}>
         <img className="dio-art" src={art.src} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} draggable={false} />
+        <img className="dio-islet" src="/town/casino-islet.webp" alt="" draggable={false}
+          style={{ left: c.x + (art.islet.x - art.islet.w / 2) * c.w, top: c.y + art.islet.y * c.h, width: art.islet.w * c.w }} />
         <canvas ref={live} className={`dio-live${chogTag ? " hot" : ""}`} aria-hidden="true" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} />
         <img key={jump} className="dio-toy" src="/toy/wave.webp" alt="" draggable={false}
           style={{ left: c.x + art.toy.x * c.w, top: c.y + art.toy.y * c.h, width: art.toy.size * c.w }} />

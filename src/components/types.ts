@@ -1,10 +1,11 @@
-export type PlaceKey = "home" | "arena" | "feed" | "hall" | "shop";
+export type PlaceKey = "home" | "arena" | "feed" | "hall" | "shop" | "casino";
 export const PLACES: { key: PlaceKey; name: string; eyebrow: string; dock: string }[] = [
   { key: "home", name: "Your Chogmate", eyebrow: "The heart of Chogtown", dock: "Chogmate" },
   { key: "arena", name: "The Royal Amphitheatre", eyebrow: "Games", dock: "Arena" },
   { key: "feed", name: "The Grand Gazette", eyebrow: "Town feed", dock: "Gazette" },
   { key: "hall", name: "Palace of Legends", eyebrow: "Leaderboards", dock: "Legends" },
   { key: "shop", name: "The Boutique Quarter", eyebrow: "Face Booth & studio", dock: "Boutique" },
+  { key: "casino", name: "Lucky Lilypad", eyebrow: "Casino · play chips only", dock: "Casino" },
 ];
 
 export interface Me { address: string | null; tokenId: number | null; guest: boolean; held: { balance: number; ids: number[] | null } | null; ai: boolean }
@@ -21,6 +22,9 @@ export interface ChogView {
 
 export interface Shell {
   me: Me | null;
+  /** the live island (feuds, Main Event), and server clock minus ours */
+  live?: import("./Diorama").LiveView | null;
+  offset?: number;
   refreshMe(): Promise<void>;
   chog: ChogView | null;
   setChog(c: ChogView | null): void;

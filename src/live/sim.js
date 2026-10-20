@@ -14,13 +14,13 @@ const LINE_S = 3.2;           // how long a line stays up before the reply
 const MAX_TALKS = 2;          // conversations at once, so the island reads
 const STAGE = 18;             // Chogs out on the island at once
 // doors: places a Chog can go inside (and come back out of)
-export const DOORS = { arena: 'arena', kiosk: 'feed', tower: 'feed', shop: 'shop', palace: 'hall' };
+export const DOORS = { arena: 'arena', kiosk: 'feed', tower: 'feed', shop: 'shop', palace: 'hall', pier: 'casino' };
 // where Chogs stand on a node, in art widths: up to 3 per node, never on top of each other
 const SLOTS = [[0, 0], [-.024, .01], [.024, .01]];
 const SCENE_SLOT = [0, .024]; // a fourth spot, only for a player walking up to someone
 // where the crowd stands when the Main Event bell rings
 export const RALLY = ['arena', 'pA', 'fN', 'fNW', 'fNE', 'lawnW', 'pT', 'fW'];
-const GOALS = [['arena', 3], ['kiosk', 2], ['shop', 2], ['palace', 2], ['tower', 1], ['fS', 2], ['fN', 1], ['fE', 1], ['fW', 1],
+const GOALS = [['pier', 2], ['arena', 3], ['kiosk', 2], ['shop', 2], ['palace', 2], ['tower', 1], ['fS', 2], ['fN', 1], ['fE', 1], ['fW', 1],
   ['fNE', 1], ['fSE', 1], ['fSW', 1], ['fNW', 1], ['lawnS', 2], ['lawnW', 2], ['pT', 1], ['pB', 1], ['pS', 1]];
 
 export const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -286,7 +286,7 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
   /** How many Chogs are inside each place right now. */
   function inside() {
     if (follow && insideCache) return insideCache;
-    const n = { arena: 0, feed: 0, shop: 0, hall: 0 };
+    const n = { arena: 0, feed: 0, shop: 0, hall: 0, casino: 0 };
     for (const c of chogs) if (!c.out) n[DOORS[c.at]]++;
     return n;
   }

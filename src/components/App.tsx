@@ -11,10 +11,11 @@ import FeedPanel from "./panels/FeedPanel";
 import ArenaPanel from "./panels/ArenaPanel";
 import HallPanel from "./panels/HallPanel";
 import ShopPanel from "./panels/ShopPanel";
+import CasinoPanel from "./panels/CasinoPanel";
 
 /** Toybox art (public/toy): an icon per place for the dock, and the toy Chog doing that place's thing for the sheet header. */
-export const PLACE_ICON: Record<PlaceKey, string> = { home: "/toy/i-home.webp", arena: "/toy/i-arena.webp", feed: "/toy/i-feed.webp", hall: "/toy/i-hall.webp", shop: "/toy/i-shop.webp" };
-const PLACE_TOY: Record<PlaceKey, string> = { home: "/toy/hug.webp", arena: "/toy/fight.webp", feed: "/toy/read.webp", hall: "/toy/trophy.webp", shop: "/toy/selfie.webp" };
+export const PLACE_ICON: Record<PlaceKey, string> = { home: "/toy/i-home.webp", arena: "/toy/i-arena.webp", feed: "/toy/i-feed.webp", hall: "/toy/i-hall.webp", shop: "/toy/i-shop.webp", casino: "/toy/i-casino.webp" };
+const PLACE_TOY: Record<PlaceKey, string> = { home: "/toy/hug.webp", arena: "/toy/fight.webp", feed: "/toy/read.webp", hall: "/toy/trophy.webp", shop: "/toy/selfie.webp", casino: "/toy/chips.webp" };
 
 export default function App() {
   const [bounceKey, setBounceKey] = useState(0);
@@ -79,7 +80,7 @@ export default function App() {
   }, [me, live, toast]);
 
   const shell: Shell = {
-    me, refreshMe, chog, setChog, toast,
+    me, refreshMe, chog, setChog, toast, live, offset,
     bounce: () => setBounceKey((b) => b + 1),
     setLook: () => {}, // looks show on the Boutique card; the diorama keeps the town mascot
   };
@@ -122,6 +123,7 @@ export default function App() {
           {active === "arena" && <ArenaPanel shell={shell} />}
           {active === "hall" && <HallPanel shell={shell} />}
           {active === "shop" && <ShopPanel shell={shell} goHome={() => open("home")} />}
+          {active === "casino" && <CasinoPanel shell={shell} />}
         </div>
       </aside>
 

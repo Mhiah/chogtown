@@ -26,6 +26,8 @@ thatskygame.com, cozyeating.app (Awwwards), Brawl Stars HUD (interfaceingame.com
 | | **Running total** | **34** |
 | 2026-10-20 | BTC glasses removed: 6 toy poses + hero re-rendered, plus app-icon head (gpt_image_2_5 high) | 12 |
 | | **Running total** | **46** |
+| 2026-10-20 | Lucky Lilypad casino: islet, interior close-up, dock icon, toy with chips (gpt_image_2_5) | 9.2 |
+| | **Running total** | **55.2** |
 
 **Mascot:** the toy Chog's glasses are plain orange lenses, no BTC marks (user: keep it only Chog related).
 Favicon set (`src/app/favicon.ico`, `icon.png`, `apple-icon.png`) is the toy's head on a rose tile, cut from `public/toy/wave.webp`.

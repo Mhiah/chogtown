@@ -16,6 +16,8 @@ export const NODES = [
   { id: 'fSE', w: [0.78,0.658], t: [0.611,0.662] },
   { id: 'fSW', w: [0.628,0.658], t: [0.389,0.662] },
   { id: 'fNW', w: [0.628,0.502], t: [0.389,0.604] },
+  // the casino pier: Chogs heading to the Lucky Lilypad leave the island here
+  { id: 'pier', w: [0.52, 0.45], t: [0.3, 0.55], place: 'casino' },
   { id: 'pA', w: [0.643,0.499], t: [0.5,0.56] },
   { id: 'pT', w: [0.771,0.493], t: [0.708,0.575] },
   { id: 'pB', w: [0.829,0.64], t: [0.612,0.706] },
@@ -32,14 +34,14 @@ export const NODES = [
 ];
 export const EDGES = [
   ['fN', 'fNE'], ['fNE', 'fE'], ['fE', 'fSE'], ['fSE', 'fS'], ['fS', 'fSW'], ['fSW', 'fW'], ['fW', 'fNW'], ['fNW', 'fN'],
-  ['fN', 'pA'], ['pA', 'arena'], ['fN', 'pT'], ['fE', 'pT'], ['pT', 'tower'], ['pT', 'kiosk'],
+  ['pA', 'pier'], ['fN', 'pA'], ['pA', 'arena'], ['fN', 'pT'], ['fE', 'pT'], ['pT', 'tower'], ['pT', 'kiosk'],
   ['fE', 'pB'], ['pB', 'shop'], ['fS', 'pS'], ['pS', 'lawnS'], ['pB', 'lawnS'],
   ['fW', 'pP'], ['pP', 'palace'], ['fW', 'lawnW'], ['pA', 'lawnW'], ['fS', 'pP'],
 ];
 export const NODE = Object.fromEntries(NODES.map((n) => [n.id, n]));
 export const ADJ = Object.fromEntries(NODES.map((n) => [n.id, []]));
 for (const [a, b] of EDGES) { ADJ[a].push(b); ADJ[b].push(a); }
-export const PLACE_NODE = { home: 'fS', arena: 'arena', feed: 'kiosk', shop: 'shop', hall: 'palace' };
+export const PLACE_NODE = { home: 'fS', arena: 'arena', feed: 'kiosk', shop: 'shop', hall: 'palace', casino: 'pier' };
 
 /** Breadth-first shortest path between two nodes (the graph is tiny). */
 export function route(from, to) {
