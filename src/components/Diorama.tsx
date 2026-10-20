@@ -131,6 +131,10 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
       const v = JSON.parse((e as MessageEvent).data);
       follow.load(v);
       crownRef.current = v.crown?.id ?? null;
+      // the last Main Event winner carries a trophy around town
+      const last = v.main?.done ? v.main : v.lastMain;
+      champRef.current = last?.winner ? (last.winner === "a" ? last.a.id : last.b.id) : null;
+      mainRef.current = v.main && !v.main.done ? { bellAt: v.main.bellAt, startAt: v.main.startAt, off: v.now - Date.now() } : null;
       if (simRef.current !== follow) { simRef.current = follow; (window as any).__island = follow; }
       liveCb.current?.(v);
     });
@@ -138,6 +142,17 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
   }, []);
   const mineRef = useRef(mine); mineRef.current = mine;
   const crownRef = useRef<number | null>(null);
+  const champRef = useRef<number | null>(null);
+  // the bell: the camera dives into the Amphitheatre while the town walks over, until the fight opens
+  const mainRef = useRef<{ bellAt: number; startAt: number; off: number } | null>(null);
+  const [dive, setDive] = useState(false);
+  useEffect(() => {
+    const i = setInterval(() => {
+      const m = mainRef.current, t = Date.now() + (m?.off ?? 0);
+      setDive(!!m && t >= m.bellAt + 1500 && t < m.startAt - 6500);
+    }, 400);
+    return () => clearInterval(i);
+  }, []);
   const view = useRef({ W: 0, H: 0, base: 0, which: "w", dpr: 1, still: false });
   view.current = { W: c.w, H: c.h, base: (tall ? .042 : .022) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
   useEffect(() => {
@@ -151,7 +166,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
       if (!sim || !v.W) return;
       if (cv.width !== Math.round(v.W * v.dpr)) { cv.width = Math.round(v.W * v.dpr); cv.height = Math.round(v.H * v.dpr); }
       sim.step(dt);
-      for (const ch of sim.chogs) { ch.mine = ch.id === mineRef.current; ch.crowned = ch.id === crownRef.current; }
+      for (const ch of sim.chogs) { ch.mine = ch.id === mineRef.current; ch.crowned = ch.id === crownRef.current; ch.champ = ch.id === champRef.current; }
       hits.current = drawIsland(cv.getContext("2d")!, sim, { ...v, still }, sim.t, hoverChog.current);
     };
     raf = requestAnimationFrame(loop);
@@ -172,7 +187,10 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
 
   return (
     <div ref={box} onClick={tap} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}${chogTag ? " chog-hot" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
-      <div className="dio-world" style={{ transform: `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})` }}>
+      <div className={`dio-world${dive ? " dive" : ""}`} style={{
+        transform: dive ? "scale(1.85)" : `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})`,
+        transformOrigin: dive ? `${c.x + art.spots.arena.x * c.w}px ${c.y + (art.spots.arena.y + .1) * c.h}px` : undefined,
+      }}>
         <img className="dio-art" src={art.src} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} draggable={false} />
         <img className="dio-islet" src="/town/casino-islet.webp" alt="" draggable={false}
           style={{ left: c.x + (art.islet.x - art.islet.w / 2) * c.w, top: c.y + art.islet.y * c.h, width: art.islet.w * c.w }} />

@@ -84,6 +84,10 @@ export function drawIsland(ctx, sim, view, now, hover) {
       ctx.font = `${s * .5}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       ctx.fillText('👑', cx + cw - s * .08, cy + s * .08);
     }
+    if (c.champ) {
+      ctx.font = `${s * .5}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('🏆', cx + s * .06, cy + s * .08);
+    }
     if (hover === c.id || c.mine) {
       ctx.strokeStyle = c.mine ? ROSE : ROYAL; ctx.lineWidth = Math.max(2, s * .07);
       rr(ctx, cx - s * .07, cy - s * .07, cw + s * .14, ch + s * .14, s * .2); ctx.stroke();

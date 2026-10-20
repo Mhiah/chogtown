@@ -124,7 +124,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     if (o.shot && t.kit.aura.kind === 'smoke' && G() < .22){ say(t.x, t.z, 'phased', '#d6d0e4'); return false; }
     if (t.shield > 0){ if (o.shot) return 'reflect'; spark(t.x, t.z, '#ff9bcb', 6); return false; }
     let dmg = o.dmg * mult(src), crit = false;
-    if (src.kit.acc.kind === 'lucky' && G() < .12){ dmg *= 1.6; crit = true; }
+    if (src.kit.acc.kind === 'lucky' && G() < .12){ dmg *= 1.6; crit = true; onEvent?.({ type: 'crit', side: src.side }); }
     if (src.grin > 0 && o.dmg > 1){ src.grin = 0; say(src.x, src.z, 'GRIN POWER', '#f4ce87'); }
     t.dmg = Math.min(999, t.dmg + dmg); src.dealt += dmg; t.lastHit = `${o.kind || (o.shot ? 'shot' : 'melee')}:${o.kb}`;
     if (src.kit.aura.kind === 'leech') src.dmg = Math.max(0, src.dmg - dmg * .3);
@@ -140,7 +140,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     const l = len(o.dx, o.dz);
     t.vx += o.dx / l * k; t.vz += o.dz / l * k;
     t.flash = .12; t.squash = 1;
-    if (o.kb * (1 + t.dmg / 60) > 9){ hitstop = .07; shake = Math.min(18, shake + 9); sfx.big(); crowdHype = 1; }
+    if (o.kb * (1 + t.dmg / 60) > 9){ hitstop = .07; shake = Math.min(18, shake + 9); sfx.big(); crowdHype = 1; onEvent?.({ type: 'smash', side: t.side, dmg: Math.round(t.dmg) }); }
     else { shake = Math.min(10, shake + 3); sfx.hit(1 + dmg / 10); }
     spark(t.x, t.z, o.color || '#fff', o.kb > 6 ? 16 : 8);
     say(t.x, t.z, `${crit ? 'CRIT ' : ''}${Math.round(dmg)}%`, crit ? '#ffe27a' : '#fff');
@@ -321,11 +321,12 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
       else { p.state = 'fall'; p.t2 = 0; p.vy = 120; sfx.ringout(); other(p).ringouts++; slowmo = .35; shake = 20; crowdHype = 1.5; sfx.crowd(.45); say(p.x, p.z, 'RING OUT!', '#ff6b8a', true); onEvent?.({ type: 'ringout', side: p.side, dmg: Math.round(p.dmg), speed: Math.round(Math.hypot(p.vx, p.vz)), launch: +(p.launch || 0).toFixed(2), last: p.lastHit }); }
     } else if (d < R - 20) p.hovering = 0;
     // frog dad
-    if (p.frog && p.dmg > 50 && p.state === 'ok'){ p.frog = false; frogs.push({ owner: p.side, x: p.x, z: p.z, t: 0, hops: 0 }); say(p.x, p.z, 'FROG DAD!', '#86d99a', true); sfx.frog(); }
+    if (p.frog && p.dmg > 50 && p.state === 'ok'){ p.frog = false; frogs.push({ owner: p.side, x: p.x, z: p.z, t: 0, hops: 0 }); say(p.x, p.z, 'FROG DAD!', '#86d99a', true); sfx.frog(); onEvent?.({ type: 'frog', side: p.side }); }
   }
 
   function loseStock(p){
     p.stocks--; slowmo = 1;
+    onEvent?.({ type: 'stock', side: p.side, left: p.stocks });
     if (p.stocks <= 0){ p.state = 'out'; finish(p.side === 0 ? false : true); return; }
     Object.assign(p, { state: 'respawn', t2: 0, x: p.side ? 120 : -120, z: -40, vx: 0, vz: 0, y: 0, vy: 0, dmg: 0, burn: 0, stun: 0, slow: 0, charm: 0, freeze: 0, puke: 0, dashT: 0, lunge: 0, windup: 0 });
     p.hover = p.kit.body.perk === 'astro'; p.frog = p.kit.acc.kind === 'frog';
@@ -341,7 +342,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function step(dt){
     time += dt;
     for (let i = later.length - 1; i >= 0; i--) if (time >= later[i].at) { const l = later.splice(i, 1)[0]; l.f(); }
-    if (phase === 'intro'){ phaseT += dt; const n = Math.ceil(3 - phaseT); if (n !== step.last && n > 0){ step.last = n; sfx.count(); } if (phaseT > 3){ phase = 'fight'; sfx.go(); sfx.crowd(.35); } }
+    if (phase === 'intro'){ phaseT += dt; const n = Math.ceil(3 - phaseT); if (n !== step.last && n > 0){ step.last = n; sfx.count(); } if (phaseT > 3){ phase = 'fight'; sfx.go(); sfx.crowd(.35); onEvent?.({ type: 'go' }); } }
     if (phase === 'fight'){
       clock -= dt;
       if (clock <= 0){ clock = 0; const a = P[0], b = P[1]; finish(a.stocks !== b.stocks ? a.stocks > b.stocks : a.dmg <= b.dmg); }

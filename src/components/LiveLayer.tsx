@@ -225,15 +225,48 @@ function MainStage({ m, now, local, picked, onPick, onClose }: { m: MainView; no
   const [localWinner, setLocalWinner] = useState<"a" | "b" | null>(null);
   const started = now >= local(m.startAt) - 3500;
   const total = m.picks.a + m.picks.b;
+  // ringside: a commentator line and the crowd reacting, both driven by the fight's own moments
+  const [call, setCall] = useState<string>("");
+  const [bursts, setBursts] = useState<{ id: number; x: number; e: string }[]>([]);
+  const burst = (n: number, set: string[]) => setBursts((b) => [...b.slice(-40), ...Array.from({ length: n }, (_, i) => ({ id: Date.now() + i + Math.random(), x: 4 + Math.random() * 92, e: set[Math.floor(Math.random() * set.length)] }))]);
+  useEffect(() => { if (!bursts.length) return; const t = setTimeout(() => setBursts((b) => b.slice(Math.min(b.length, 8))), 1600); return () => clearTimeout(t); }, [bursts]);
   useEffect(() => {
     if (!started || ended || !canvas.current) return;
-    let g: { dispose(): void } | null = null, alive = true;
+    let g: { dispose(): void; state(): { clock: number; P: { dmg: number; stocks: number }[] } } | null = null, alive = true;
+    const nameOf = (side: number) => (side === 0 ? m.a.name : m.b.name);
+    const pickOne = (a: string[]) => a[Math.floor(Math.random() * a.length)];
+    let lastCall = 0;
+    const say = (t: string, force = false) => { if (!force && Date.now() - lastCall < 1400) return; lastCall = Date.now(); setCall(t); };
     import("@/arena/rumble").then(({ createRumble }) => {
       if (!alive || !canvas.current) return;
-      g = createRumble({ canvas: canvas.current, me: m.a, foe: m.b, auto: true, seed: m.seed, startAt: local(m.startAt), spectate: true, onEnd: (r: { won: boolean }) => { setLocalWinner(r.won ? "a" : "b"); setEnded(true); } });
+      g = createRumble({
+        canvas: canvas.current, me: m.a, foe: m.b, auto: true, seed: m.seed, startAt: local(m.startAt), spectate: true,
+        onEnd: (r: { won: boolean }) => { setLocalWinner(r.won ? "a" : "b"); setEnded(true); burst(40, ["🎉", "🎊", "✨", "👑", "🔥"]); },
+        onEvent: (e: { type: string; side?: number; left?: number }) => {
+          // a late joiner fast-forwards through the fight: stay quiet until it's caught up
+          if (Date.now() - local(m.startAt) > 0 && caughtUp === false) return;
+          const v = nameOf(e.side ?? 0), o = nameOf(1 - (e.side ?? 0));
+          if (e.type === "go") { say(`And we're LIVE! ${m.a.name} versus ${m.b.name}!`, true); burst(10, ["👏", "📣", "🔥"]); }
+          if (e.type === "smash") { say(pickOne([`OOF. ${v} felt that one!`, `${v} takes a monster hit!`, `${o} is putting on a show!`])); burst(6, ["😱", "🔥", "💥"]); }
+          if (e.type === "crit") say(`Lucky crit from ${v}!`);
+          if (e.type === "ringout") { say(`RING OUT! ${v} is off the stage!`, true); burst(16, ["😱", "🤯", "📣", "🔥"]); }
+          if (e.type === "stock" && e.left === 1) say(`Last life for ${v}! The crowd is on its feet!`, true);
+          if (e.type === "frog") { say(`FROG DAD has entered the arena for ${v}!`, true); burst(10, ["🐸"]); }
+        },
+      });
     });
-    return () => { alive = false; g?.dispose(); };
+    // once the replay has caught up with the clock, the commentary switches on
+    let caughtUp = false;
+    const t = setTimeout(() => { caughtUp = true; }, Math.max(0, Date.now() - local(m.startAt) > 2000 ? 1200 : 0));
+    let said30 = false; const danger = [false, false];
+    const poll = setInterval(() => {
+      const s = g?.state(); if (!s) return;
+      if (!said30 && s.clock <= 30 && s.clock > 0) { said30 = true; say("Thirty seconds left!", true); }
+      s.P.forEach((p, i) => { if (p.dmg >= 100 && !danger[i]) { danger[i] = true; say(`${nameOf(i)} is in the danger zone at ${Math.round(p.dmg)}%!`); } if (p.dmg < 30) danger[i] = false; });
+    }, 700);
+    return () => { alive = false; clearTimeout(t); clearInterval(poll); g?.dispose(); };
   }, [started, ended, m.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pool = m.pool ?? { a: 100, b: 100 }, share = Math.round(pool.a / (pool.a + pool.b) * 100);
   const winner = m.winner ?? localWinner;
   const toStart = Math.max(0, Math.ceil((local(m.startAt) - now) / 1000));
   return createPortal(
@@ -256,6 +289,14 @@ function MainStage({ m, now, local, picked, onPick, onClose }: { m: MainView; no
         <div className="rumble-stage">
           {!ended && <canvas ref={canvas} className="rumble-canvas" />}
           <div className="main-live">{ended ? "Main Event" : "● LIVE"} · {m.a.name} vs {m.b.name}</div>
+          {!ended && call && <div className="main-call" key={call}>🎙️ {call}</div>}
+          {!ended && (
+            <div className="main-pool" title="Chips bet on each side at the Lucky Lilypad">
+              <span>{m.a.name}</span><div className="split"><i style={{ width: `${share}%` }} /></div><span>{m.b.name}</span>
+              <em>{(pool.a + pool.b).toLocaleString()} chips in the pool</em>
+            </div>
+          )}
+          <div className="crowd-bursts" aria-hidden="true">{bursts.map((b) => <i key={b.id} style={{ left: `${b.x}%` }}>{b.e}</i>)}</div>
           {ended && (
             <div className="rumble-done">
               <div className="eyebrow">Main Event result</div>

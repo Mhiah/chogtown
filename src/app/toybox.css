@@ -392,3 +392,15 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .live-cards.powers .live-cardbtn{padding:6px 6px;gap:4px;justify-content:center;flex-direction:column;text-align:center}
 .live-cards.powers .live-cardbtn b{font-size:12.5px;line-height:1.1}
 .live-cards.powers .live-cardbtn .e{font-size:17px}
+/* ---------- Main Event ringside ---------- */
+.main-call{position:absolute;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#2b1b5a;color:#fff;font-family:var(--display);font-weight:600;font-size:clamp(15px,2.2vw,22px);padding:10px 20px;border-radius:18px;box-shadow:0 6px 0 #160c36,0 20px 40px rgba(43,27,90,.3);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;animation:callIn .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes callIn{from{opacity:0;transform:translate(-50%,10px) scale(.9)}}
+.main-pool{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:grid;grid-template-columns:auto 180px auto;gap:4px 10px;align-items:center;background:#fff;border-radius:16px;padding:8px 14px;font-weight:800;font-size:12.5px;color:var(--ink);box-shadow:0 4px 0 var(--lip)}
+.main-pool .split{height:8px;border-radius:8px;background:#ff7aa8;overflow:hidden}
+.main-pool .split i{display:block;height:100%;background:var(--royal)}
+.main-pool em{grid-column:1/-1;text-align:center;font-style:normal;font-size:11px;color:var(--ink2)}
+.crowd-bursts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.crowd-bursts i{position:absolute;bottom:-40px;font-style:normal;font-size:30px;animation:burstUp 1.6s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes burstUp{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translateY(-62vh) scale(1.2) rotate(18deg);opacity:0}}
+@media (max-width:700px){.main-pool{grid-template-columns:auto 110px auto;font-size:11px}.main-call{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+.dio-world.dive{transition:transform 2.4s cubic-bezier(.5,0,.15,1)}
