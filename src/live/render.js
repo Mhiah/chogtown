@@ -28,7 +28,8 @@ function wrap(ctx, text, max) {
     if (ctx.measureText(next).width > max && line) { out.push(line); line = w; } else line = next;
   }
   if (line) out.push(line);
-  return out.slice(0, 3);
+  if (out.length > 4) { out.length = 4; out[3] = out[3].replace(/\s*\S*$/, '') + '…'; }
+  return out;
 }
 
 /**
@@ -102,7 +103,7 @@ function bubble(ctx, { c, x, y, s, tag }, now, W, placed) {
   ctx.save();
   ctx.globalAlpha = a;
   ctx.font = `${tag ? 700 : 800} ${fs}px Nunito, system-ui, sans-serif`;
-  const lines = wrap(ctx, text, tag ? 400 : fs * 13);
+  const lines = wrap(ctx, text, tag ? 400 : fs * 15);
   const lw = Math.max(...lines.map((l) => ctx.measureText(l).width));
   const pad = fs * .7, bw = lw + pad * 2, bh = lines.length * fs * 1.25 + pad * 1.3;
   let bx = x - bw / 2; bx = Math.max(6, Math.min(W - bw - 6, bx));
