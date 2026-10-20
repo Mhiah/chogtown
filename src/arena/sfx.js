@@ -11,6 +11,8 @@ export function unlock(){
 }
 export function setMuted(m){ muted = m; try { localStorage.setItem('chogtown:mute', m ? '1' : '0'); } catch {} if (master) master.gain.value = m ? 0 : .45; }
 export const isMuted = () => muted;
+/** The shared audio graph, for the town's music box (src/live/music.js). */
+export const audio = () => (ac ? { ac, master } : null);
 
 function tone(f0, f1, dur, type = 'square', vol = .2, delay = 0){
   if (!ac) return;
@@ -56,4 +58,11 @@ export const sfx = {
   go: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, f, .14, 'square', .1, i * .05)),
   win: () => [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, f * 1.01, .2, 'triangle', .14, i * .1)),
   lose: () => [392, 330, 262].forEach((f, i) => tone(f, f * .98, .28, 'triangle', .14, i * .16)),
+  // the town
+  bell: () => [0, .9, 1.8].forEach((d) => { tone(784, 780, 1.6, 'sine', .16, d); tone(1976, 1970, 1.1, 'sine', .06, d); tone(2637, 2630, .7, 'sine', .03, d); }),
+  blip: () => tone(1320 + Math.random() * 400, 1500, .05, 'sine', .025),
+  card: () => { noise(.18, .12, 3200, 0, 1.2, 'bandpass'); [880, 1175, 1568].forEach((f, i) => tone(f, f, .1, 'triangle', .06, .08 + i * .05)); },
+  tick: () => tone(2200, 2000, .02, 'square', .03),
+  jackpot: () => { [523, 659, 784, 1046, 1318, 1568, 2093].forEach((f, i) => tone(f, f, .22, 'triangle', .13, i * .08)); noise(1.2, .2, 2400, .5, .6, 'bandpass'); },
+  cheer: () => { noise(1.6, .28, 1300, 0, .4); noise(1.2, .15, 2800, .15, .7, 'bandpass'); },
 };

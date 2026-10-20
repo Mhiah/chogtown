@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, errMsg, sendChogTip, short } from "./client";
+import { sfx } from "@/arena/sfx";
 import type { LiveView, MainView } from "./Diorama";
 import type { Me } from "./types";
 
@@ -70,6 +71,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
     setBusy(true);
     try {
       const r = await api<{ feud: { heat: number; stage: number; name: string } | null; booked: boolean; refused: boolean }>("/api/live/act", { kind: "card", target: id, card });
+      sfx.card();
       if (card === "pump" || card === "dump") toast(card === "pump" ? `Pumped ${c.name}'s side of the pool. Watch the odds move.` : `Dumped on ${c.name}. The odds just moved.`);
       else if (card === "crown") toast("👑 You're Chog of the Day. Guard that crown.");
       else if (r.booked) toast("Challenge accepted. The Main Event is booked!");
@@ -195,6 +197,9 @@ export function MainEvent({ live, offset, toast }: { live: LiveView | null; offs
   const [mine, setMine] = useState<Record<string, "a" | "b">>({});
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(i); }, []);
   const local = (t: number) => t - offset; // server ms -> this browser's clock
+  // ring the bell once per Main Event
+  const rung = useRef<string | null>(null);
+  useEffect(() => { if (m && !m.done && rung.current !== m.id && now >= local(m.bellAt)) { rung.current = m.id; sfx.bell(); } }, [m, now]); // eslint-disable-line react-hooks/exhaustive-deps
   // the fight opens by itself a few seconds before the bell, unless you closed it
   useEffect(() => { if (m && !m.done && dismissed !== m.id && now >= local(m.startAt) - 6000 && now < local(m.endAt)) setOpen(true); }, [m, now, dismissed]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!m) setOpen(false); }, [m]);
@@ -242,7 +247,7 @@ function MainStage({ m, now, local, picked, onPick, onClose }: { m: MainView; no
       if (!alive || !canvas.current) return;
       g = createRumble({
         canvas: canvas.current, me: m.a, foe: m.b, auto: true, seed: m.seed, startAt: local(m.startAt), spectate: true,
-        onEnd: (r: { won: boolean }) => { setLocalWinner(r.won ? "a" : "b"); setEnded(true); burst(40, ["🎉", "🎊", "✨", "👑", "🔥"]); },
+        onEnd: (r: { won: boolean }) => { setLocalWinner(r.won ? "a" : "b"); setEnded(true); burst(40, ["🎉", "🎊", "✨", "👑", "🔥"]); sfx.cheer(); },
         onEvent: (e: { type: string; side?: number; left?: number }) => {
           // a late joiner fast-forwards through the fight: stay quiet until it's caught up
           if (Date.now() - local(m.startAt) > 0 && caughtUp === false) return;

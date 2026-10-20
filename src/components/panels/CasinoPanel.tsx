@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Shell } from "../types";
 import { api, errMsg } from "../client";
+import { sfx } from "@/arena/sfx";
 
 /** The Lucky Lilypad: Chog Slots, the Main Event book and the high rollers. Play chips only. */
 
@@ -55,7 +56,7 @@ function Slots({ chips, bets, onChips, toast }: { chips: number; bets: number[];
   const go = async () => {
     if (busy) return;
     setRes(null); setSpinning([true, true, true]); stopped.current = 0;
-    const tick = setInterval(() => setReels((r) => r.map((s, i) => (i < stopped.current ? s : ORDER[(ORDER.indexOf(s) + 1 + i) % ORDER.length]))), 70);
+    const tick = setInterval(() => { sfx.tick(); setReels((r) => r.map((s, i) => (i < stopped.current ? s : ORDER[(ORDER.indexOf(s) + 1 + i) % ORDER.length]))); }, 70);
     try {
       const r = await api<{ reels: Sym[]; x: number; win: number; line: string; chips: number }>("/api/casino", { kind: "spin", bet });
       // stop the reels one at a time
@@ -67,7 +68,8 @@ function Slots({ chips, bets, onChips, toast }: { chips: number; bets: number[];
       }
       clearInterval(tick);
       setReels(r.reels); setRes(r); onChips(r.chips);
-      if (r.x === 50) toast("FROG DAD JACKPOT! The whole island heard that.");
+      if (r.x === 50) { sfx.jackpot(); toast("FROG DAD JACKPOT! The whole island heard that."); }
+      else if (r.win > 0) (r.x >= 5 ? sfx.win : sfx.coins)();
     } catch (e) { clearInterval(tick); stopped.current = 3; setSpinning([false, false, false]); toast(errMsg(e)); }
   };
   return (

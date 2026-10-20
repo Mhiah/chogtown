@@ -6,6 +6,8 @@ import Diorama, { type LiveView } from "./Diorama";
 import { ChogCard, PlayBar, FeudTicker, MainEvent } from "./LiveLayer";
 import Onboarding from "./Onboarding";
 import Quests from "./Quests";
+import { sfx, setMuted, isMuted } from "@/arena/sfx";
+import { startMusic } from "@/live/music";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -34,6 +36,14 @@ export default function App() {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState<{ id: number; x: number; y: number } | null>(null);
   const [help, setHelp] = useState(false);
+  const [muted, setMute] = useState(false);
+  useEffect(() => { setMute(isMuted()); }, []);
+  // sound needs a click first: the first one after entering starts the town's music box
+  useEffect(() => {
+    if (!entered) return;
+    const go = () => { startMusic(); removeEventListener("pointerdown", go); };
+    addEventListener("pointerdown", go); return () => removeEventListener("pointerdown", go);
+  }, [entered]);
   const onLive = useCallback((v: LiveView) => { setLive(v); setOffset(v.now - Date.now()); }, []);
 
   const toast = useCallback((t: string) => {
@@ -108,6 +118,7 @@ export default function App() {
         <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
           <Quests entered={entered} playing={!!me?.tokenId && !!live?.players.includes(me.tokenId)} toast={toast} />
+          <button className="pill glass btnlike help" aria-label={muted ? "Sound on" : "Sound off"} onClick={() => { const m = !muted; setMuted(m); setMute(m); if (!m) { startMusic(); sfx.blip(); } }}>{muted ? "🔇" : "🔊"}</button>
           <button className="pill glass btnlike help" aria-label="How Chogtown works" onClick={() => { setEntered(true); setHelp(true); }}>?</button>
           <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>
@@ -146,7 +157,7 @@ export default function App() {
           <h1>Every Chog<br />has a <span>life.</span></h1>
           <p>The cameras never stop. Chogs walk, gossip and pick fights on their own, and everyone watches the same town live. Holders step in with their own Chog: roast a rival, start a rumour, push a feud all the way to the Main Event.</p>
           <div className="btns">
-            <button className="btn" onClick={() => setEntered(true)}>Watch live →</button>
+            <button className="btn" onClick={() => { setEntered(true); startMusic(); }}>Watch live →</button>
             <button className="btn ghost" onClick={() => open("home")}>👑 Play your Chog</button>
           </div>
           <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>{PLACES.length}</b><span>places</span></div><div><b>every 6 min</b><span>a Main Event</span></div></div>

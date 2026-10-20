@@ -6,6 +6,8 @@ import type { PlaceKey } from "./types";
 import { createSim } from "@/live/sim";
 import { drawIsland } from "@/live/render";
 import { NODES } from "@/live/map";
+import { setNight as musicNight } from "@/live/music";
+import { sfx, isMuted } from "@/arena/sfx";
 import { PLACES } from "./types";
 
 /**
@@ -84,7 +86,8 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
   const [hover, setHover] = useState<PlaceKey | null>(null);
   const [jump, setJump] = useState(0);
   const [night, setNight] = useState(0);
-  useEffect(() => { const t = () => setNight(nightLevel()); t(); const i = setInterval(t, 30_000); return () => clearInterval(i); }, []);
+  useEffect(() => { const t = () => { const n = nightLevel(); setNight(n); musicNight(n); }; t(); const i = setInterval(t, 30_000); return () => clearInterval(i); }, []);
+  const heard = useRef(new Set<string>()), lastBlip = useRef(0);
   const live = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<any>(null);
   const hits = useRef<{ id: number; x: number; y: number; w: number; h: number }[]>([]);
@@ -181,6 +184,11 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
       if (!sim || !v.W) return;
       if (cv.width !== Math.round(v.W * v.dpr)) { cv.width = Math.round(v.W * v.dpr); cv.height = Math.round(v.H * v.dpr); }
       sim.step(dt);
+      // a soft blip when someone starts talking, so the town sounds busy (never more than one every 0.5s)
+      for (const ch of sim.chogs) if (ch.bubble) {
+        const k = `${ch.id}:${Math.round(ch.bubble.t0)}`;
+        if (!heard.current.has(k)) { heard.current.add(k); if (heard.current.size > 400) heard.current.clear(); if (!isMuted() && now - lastBlip.current > 500) { lastBlip.current = now; sfx.blip(); } }
+      }
       for (const ch of sim.chogs) { ch.mine = ch.id === mineRef.current; ch.crowned = ch.id === crownRef.current; ch.champ = ch.id === champRef.current; }
       hits.current = drawIsland(cv.getContext("2d")!, sim, { ...v, still }, sim.t, hoverChog.current);
     };
