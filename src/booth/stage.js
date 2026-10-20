@@ -11,7 +11,9 @@ const TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const JEETS = ['JEET', 'RUG', 'FUD', 'PAPER', 'DUMP', 'NGMI'];
 
-export function createStage({ canvas, chog, onScore }){
+export const RUN_S = 60;
+
+export function createStage({ canvas, chog, onScore, onEnd, onFire }){
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, dpr = 1, R = 100, CX = 0, CY = 0;
   function resize(){ dpr = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight; canvas.width = W * dpr; canvas.height = H * dpr; R = Math.min(W, H) * .17; CX = W / 2; CY = H * .54; }
@@ -21,6 +23,8 @@ export function createStage({ canvas, chog, onScore }){
 
   let jeets = [], shots = [], beams = [], waves = [], fx = [], texts = [], puddles = [];
   let t = 0, spawnT = 1, score = 0, combo = 0, comboT = 0, hearts = 5, shield = 0, grin = 0, puke = 0, chomp = 0, shake = 0, flash = 0, over = false, mouthOpen = false;
+  // phase: 'ready' (practice, nothing spawns) -> 'count' (3-2-1) -> 'run' (60s) -> 'done'
+  let phase = 'ready', phaseT = 0, clock = RUN_S, kills = 0, bestCombo = 0, ended = false;
   const eyeL = () => ({ x: CX - R * .2, y: CY - R * .12 }), eyeR = () => ({ x: CX + R * .2, y: CY - R * .12 }), mouthP = () => ({ x: CX, y: CY + R * .32 });
 
   function nearest(from){ let best = null, bd = 1e9; for (const j of jeets){ const d = Math.hypot(j.x - from.x, j.y - from.y); if (d < bd){ bd = d; best = j; } } return best; }
@@ -32,14 +36,14 @@ export function createStage({ canvas, chog, onScore }){
   function damage(j, d, color){
     j.hp -= d * mult(); j.flash = .12; spark(j.x, j.y, color || '#fff', 6);
     if (j.hp <= 0 && !j.dead){
-      j.dead = true; combo++; comboT = 2.2; const pts = 10 * Math.min(combo, 8); score += pts; onScore?.(score);
+      j.dead = true; combo++; comboT = 2.2; kills++; bestCombo = Math.max(bestCombo, combo); const pts = 10 * Math.min(combo, 8); score += pts; onScore?.(score);
       spark(j.x, j.y, '#f4ce87', 18); say(j.x, j.y, combo > 1 ? `+${pts} ×${combo}` : `+${pts}`, '#f4ce87'); sfx.hit(1); shake = Math.min(10, shake + 3);
     }
   }
 
   /* ---------- the face buttons ---------- */
   function eyes(){
-    if (over) return; unlock();
+    if (over || phase === 'done') return; unlock(); onFire?.('eyes');
     const e = kit.eyes, L = eyeL(), Rr = eyeR();
     say(CX, CY - R * 1.25, e.name, e.color);
     if (e.kind === 'laser'){
@@ -60,9 +64,10 @@ export function createStage({ canvas, chog, onScore }){
   }
 
   function mouth(open){
-    if (over) return; unlock();
+    if (over || phase === 'done') return; unlock();
     mouthOpen = open;
     if (!open) return;
+    onFire?.('mouth');
     const m = kit.mouth, o = mouthP();
     say(CX, CY + R * 1.45, m.name, '#ff9bcb');
     if (m.kind === 'puke'){ puke = 1.6; sfx.puke(); }
@@ -81,11 +86,14 @@ export function createStage({ canvas, chog, onScore }){
     shield = Math.max(0, shield - dt); grin = Math.max(0, grin - dt); chomp = Math.max(0, chomp - dt); flash = Math.max(0, flash - dt);
     if (comboT > 0){ comboT -= dt; if (comboT <= 0) combo = 0; }
     // jeets drift in from the edges, faster as the score climbs
+    if (phase === 'count'){ phaseT += dt; const n = Math.ceil(3 - phaseT); if (n !== step.n && n > 0){ step.n = n; sfx.count(); } if (phaseT >= 3){ phase = 'run'; phaseT = 0; sfx.go(); } }
+    if (phase === 'run'){ clock -= dt; if (clock <= 0 || over) finish(); }
     spawnT -= dt;
-    if (spawnT <= 0 && !over){
-      spawnT = Math.max(.45, 1.5 - score / 1500);
+    const practice = phase === 'ready' && jeets.length < 3;
+    if (spawnT <= 0 && !over && (phase === 'run' || practice)){
+      spawnT = phase === 'run' ? Math.max(.62, 1.5 - score / 3000 - (RUN_S - clock) / 140) : 1.8;
       const a = Math.random() * TAU, d = Math.max(W, H) * .62;
-      jeets.push({ x: CX + Math.cos(a) * d, y: CY + Math.sin(a) * d * .8, r: rnd(22, 30), hp: score > 400 && Math.random() < .3 ? 3 : 1, sp: rnd(45, 80) + score / 40, label: JEETS[Math.floor(Math.random() * JEETS.length)], wob: Math.random() * 6, flash: 0 });
+      jeets.push({ x: CX + Math.cos(a) * d, y: CY + Math.sin(a) * d * .8, r: rnd(22, 30), hp: score > 400 && Math.random() < .3 ? 3 : 1, sp: rnd(40, 68) + Math.min(70, score / 70), label: JEETS[Math.floor(Math.random() * JEETS.length)], wob: Math.random() * 6, flash: 0 });
     }
     for (const j of jeets){
       const dx = CX - j.x, dy = CY - j.y, d = Math.hypot(dx, dy) || 1;
@@ -93,7 +101,7 @@ export function createStage({ canvas, chog, onScore }){
       j.x += dx / d * sp * dt + Math.sin(t * 3 + j.wob) * 20 * dt; j.y += dy / d * sp * dt;
       if (j.flash > 0) j.flash -= dt;
       if (shield > 0 && d < R * 1.6){ damage(j, 9, '#ff9bcb'); }
-      else if (d < R * .95 && !j.dead){ j.dead = true; hearts--; combo = 0; shake = 16; spark(j.x, j.y, '#ff6b8a', 16); sfx.big(); say(CX, CY - R * 1.2, `-1 heart`, '#ff6b8a', true); if (hearts <= 0){ over = true; sfx.lose(); } }
+      else if (d < R * .95 && !j.dead){ j.dead = true; if (phase !== 'run'){ spark(j.x, j.y, '#ff6b8a', 8); continue; } hearts--; combo = 0; shake = 16; spark(j.x, j.y, '#ff6b8a', 16); sfx.big(); say(CX, CY - R * 1.2, `-1 heart`, '#ff6b8a', true); if (hearts <= 0){ over = true; } }
     }
     jeets = jeets.filter(j => !j.dead);
     // rainbow puke stream while the mouth stays open
@@ -113,6 +121,12 @@ export function createStage({ canvas, chog, onScore }){
     for (const p of puddles) p.t += dt; puddles = puddles.filter(p => p.t < p.life);
     for (const f of fx){ f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 300 * dt; } fx = fx.filter(f => f.t < f.life);
     for (const x of texts) x.t += dt; texts = texts.filter(x => x.t < (x.big ? 1.2 : .8));
+  }
+
+  function finish(){
+    if (ended) return; ended = true; phase = 'done'; jeets = [];
+    over ? sfx.lose() : sfx.win();
+    onEnd?.({ score, kills, bestCombo, seconds: Math.round(RUN_S - Math.max(0, clock)), hearts: Math.max(0, hearts) });
   }
 
   function draw(){
@@ -161,7 +175,12 @@ export function createStage({ canvas, chog, onScore }){
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff2d8'; ctx.font = '800 34px Inter, system-ui, sans-serif'; ctx.fillText(`${score}`, W / 2, 50);
     ctx.font = '600 12px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(251,247,255,.6)'; ctx.fillText(combo > 1 ? `combo ×${combo}` : 'jeets blasted', W / 2, 68);
     ctx.textAlign = 'right'; ctx.font = '20px sans-serif'; ctx.fillStyle = '#ff9bcb'; ctx.fillText('♥'.repeat(Math.max(0, hearts)), W - 18, 40);
-    if (over){ ctx.textAlign = 'center'; ctx.font = '900 54px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ff9bcb'; ctx.fillText('JEETED', W / 2, H * .22); ctx.font = '600 15px Inter, system-ui, sans-serif'; ctx.fillStyle = '#fbf7ff'; ctx.fillText('Press R or tap Again to play again', W / 2, H * .22 + 30); }
+    ctx.textAlign = 'left'; ctx.font = '800 22px Inter, system-ui, sans-serif'; ctx.fillStyle = clock < 10 && phase === 'run' ? '#ff9bcb' : '#fff2d8';
+    if (phase === 'run') ctx.fillText(`0:${String(Math.ceil(clock)).padStart(2, '0')}`, 18, H - 24);
+    ctx.textAlign = 'center';
+    if (phase === 'ready'){ ctx.font = '600 14px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(251,247,255,.7)'; ctx.fillText('Practice: warm up your face, then start a 60-second run', W / 2, H * .14); }
+    if (phase === 'count'){ ctx.font = '900 96px Inter, system-ui, sans-serif'; ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(20,9,31,.8)'; const n = String(Math.ceil(3 - phaseT)); ctx.strokeText(n, W / 2, H * .3); ctx.fillStyle = '#f4ce87'; ctx.fillText(n, W / 2, H * .3); }
+    if (phase === 'done'){ ctx.font = '900 54px Inter, system-ui, sans-serif'; ctx.fillStyle = over ? '#ff9bcb' : '#f4ce87'; ctx.fillText(over ? 'JEETED' : 'TIME!', W / 2, H * .2); }
   }
 
   let last = performance.now(), raf = 0, dead = false;
@@ -169,8 +188,10 @@ export function createStage({ canvas, chog, onScore }){
   raf = requestAnimationFrame(loop);
   return {
     eyes, mouth,
-    reset(){ jeets = []; shots = []; waves = []; puddles = []; score = 0; combo = 0; hearts = 5; over = false; spawnT = 1; onScore?.(0); },
-    state: () => ({ score, hearts, over, jeets: jeets.length }),
+    reset(){ jeets = []; shots = []; waves = []; puddles = []; score = 0; combo = 0; hearts = 5; over = false; spawnT = 1; phase = 'ready'; clock = RUN_S; kills = 0; bestCombo = 0; ended = false; onScore?.(0); },
+    start(){ this.reset(); phase = 'count'; phaseT = 0; step.n = 0; },
+    snapshot: () => canvas.toDataURL('image/jpeg', .85),
+    state: () => ({ score, hearts, over, jeets: jeets.length, phase, clock }),
     step(n = 60){ for (let i = 0; i < n; i++){ last -= 1000 / 60; step(1 / 60); } draw(); },
     dispose(){ dead = true; cancelAnimationFrame(raf); removeEventListener('resize', resize); },
   };

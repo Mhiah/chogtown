@@ -32,10 +32,10 @@ let look = { hat:'chef', aura:'gold' };
 const R = 14;
 const places = [
   { key:'home', name:'Your Chogmate', blurb:'Check in, chat and see who it is becoming', eyebrow:'The heart of Chogtown', x:0, z:0, foot:5.7, label:3.9, icon:'home', cam:{r:8.5, phi:1.08} },
-  { key:'arena', name:'The Royal Amphitheatre', blurb:'Tonight’s Chog debate', eyebrow:'Games', x:0, z:-9.6, foot:4.4, label:5.2, icon:'arena', cam:{r:15, phi:.88} },
+  { key:'arena', name:'The Royal Amphitheatre', blurb:'Rumble your rivals, then tonight’s debate', eyebrow:'Games', x:0, z:-9.6, foot:4.4, label:5.2, icon:'arena', cam:{r:15, phi:.88} },
   { key:'feed', name:'The Grand Gazette', blurb:'Last night’s gossip', eyebrow:'Town feed', x:8.6, z:-5.2, foot:3.1, label:10.6, icon:'feed', cam:{r:16, phi:1.0} },
   { key:'hall', name:'Palace of Legends', blurb:'Streaks, wins and feuds', eyebrow:'Leaderboards', x:-9.2, z:-1.6, foot:4.3, label:5.9, icon:'hall', cam:{r:15, phi:.95} },
-  { key:'shop', name:'The Boutique Quarter', blurb:'Dress up your Chog', eyebrow:'Studio', x:7.4, z:5.8, foot:3.5, label:4.9, icon:'shop', cam:{r:13.5, phi:.95} }
+  { key:'shop', name:'The Boutique Quarter', blurb:'Face Booth: your face fires your Chog', eyebrow:'Face Booth & studio', x:7.4, z:5.8, foot:3.5, label:4.9, icon:'shop', cam:{r:13.5, phi:.95} }
 ];
 const P = Object.fromEntries(places.map(p => [p.key, p]));
 const extra = [ { key:'cafe', x:-6.6, z:6.6, foot:3.0 }, { key:'view', x:0, z:12.4, foot:1.8 } ];

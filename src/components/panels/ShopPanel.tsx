@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import FaceBooth from "../FaceBooth";
 import type { Shell, ChogView } from "../types";
 import { api } from "../client";
 import { hats, auras } from "@/town/scene";
@@ -49,6 +51,43 @@ async function drawCard(cv: HTMLCanvasElement, chog: ChogView | null, look: { ha
 }
 
 export default function ShopPanel({ shell, goHome }: { shell: Shell; goHome(): void }) {
+  const [tab, setTab] = useState<"booth" | "dress">("booth");
+  return (
+    <>
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "booth"} onClick={() => setTab("booth")}>Face Booth</button>
+        <button role="tab" aria-selected={tab === "dress"} onClick={() => setTab("dress")}>Dress up</button>
+      </div>
+      {tab === "booth" ? <Booth shell={shell} goHome={goHome} /> : <DressUp shell={shell} goHome={goHome} />}
+    </>
+  );
+}
+
+function Booth({ shell, goHome }: { shell: Shell; goHome(): void }) {
+  const [open, setOpen] = useState(false);
+  const [best, setBest] = useState<number | null>(null);
+  const id = shell.me?.tokenId ?? null;
+  useEffect(() => { fetch("/api/booth", { cache: "no-store" }).then((r) => r.json()).then((d) => setBest(d.record?.best ?? null)).catch(() => {}); }, [open, id]);
+  const name = shell.chog?.name ?? (id ? `Chog #${id}` : "a Chog");
+  return (
+    <>
+      <div className="card booth-hero">
+        <div className="ico" aria-hidden="true">📸</div>
+        <div><b>Your face fires your Chog</b><p className="note" style={{ marginTop: 4 }}>Raise your eyebrows to fire its eyes, open your mouth for its mouth power. 60 seconds of jeets. Your camera never leaves this browser.</p></div>
+      </div>
+      <div className="card">
+        <div className="row"><span className="k">Playing as</span><b>{id ? name : "a random Chog"}</b></div>
+        {best ? <div className="row"><span className="k">Best run</span><b className="num">{best.toLocaleString()}</b></div> : null}
+        <button className="btn block" style={{ minHeight: 52 }} onClick={() => setOpen(true)}>Open the Face Booth</button>
+        {!id && <p className="note">Bring your own Chog for scores that count. <button className="linkish" onClick={goHome}>Pick it in Chogmate</button></p>}
+      </div>
+      <p className="note">Top run of the day makes the Gazette. Best runs climb the Face Booth board in the Palace of Legends.</p>
+      {open && createPortal(<FaceBooth tokenId={id} onClose={() => setOpen(false)} />, document.body)}
+    </>
+  );
+}
+
+function DressUp({ shell, goHome }: { shell: Shell; goHome(): void }) {
   const { chog, me } = shell;
   const [look, setLook] = useState(chog?.look ?? { hat: "chef", aura: "gold" });
   const cv = useRef<HTMLCanvasElement>(null);

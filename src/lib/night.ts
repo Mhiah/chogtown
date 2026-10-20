@@ -3,6 +3,7 @@ import { askJSON, obj, str, oneOf } from "./claude";
 import { RESIDENT_IDS, NEWCOMERS_PER_NIGHT, CHOG_SUPPLY, today } from "./config";
 import { ARCHETYPES, chemistry, nudge, STAT_KEYS, type Stats } from "./personality";
 import { type Chog, allChogs, getChog, saveChog, label, loadChog } from "./chogs";
+import { boothBoard } from "./booth";
 
 export interface TownEvent {
   id: string; day: string; t: number;
@@ -239,5 +240,5 @@ export async function leaderboards() {
   feuds.sort((a, b) => b.nights - a.nights);
   const warmest = [...chogs].sort((a, b) => b.stats.warmth - a.stats.warmth).slice(0, 10).map((c) => ({ id: c.id, name: label(c), value: `${c.stats.warmth} warmth` }));
   const rumble = (chogs as (Chog & { rumble?: { w: number; l: number } })[]).filter((c) => (c.rumble?.w ?? 0) > 0).sort((a, b) => b.rumble!.w - a.rumble!.w).slice(0, 10).map((c) => ({ id: c.id, name: label(c), value: `${c.rumble!.w}–${c.rumble!.l}` }));
-  return { Rumble: rumble, Streaks: streaks, "Debate wins": wins, Feuds: feuds.slice(0, 10), Warmest: warmest };
+  return { Rumble: rumble, "Face Booth": await boothBoard(), Streaks: streaks, "Debate wins": wins, Feuds: feuds.slice(0, 10), Warmest: warmest };
 }

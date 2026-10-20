@@ -4,7 +4,7 @@ export const PLACES: { key: PlaceKey; name: string; eyebrow: string; dock: strin
   { key: "arena", name: "The Royal Amphitheatre", eyebrow: "Games", dock: "Arena" },
   { key: "feed", name: "The Grand Gazette", eyebrow: "Town feed", dock: "Gazette" },
   { key: "hall", name: "Palace of Legends", eyebrow: "Leaderboards", dock: "Legends" },
-  { key: "shop", name: "The Boutique Quarter", eyebrow: "Studio", dock: "Boutique" },
+  { key: "shop", name: "The Boutique Quarter", eyebrow: "Face Booth & studio", dock: "Boutique" },
 ];
 
 export interface Me { address: string | null; tokenId: number | null; guest: boolean; held: { balance: number; ids: number[] | null } | null; ai: boolean }
