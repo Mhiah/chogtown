@@ -15,6 +15,7 @@ import { askJSON, obj, str } from "@/lib/claude";
 import { today } from "@/lib/config";
 import type { TownEvent } from "@/lib/night";
 import { adjust } from "@/lib/casino";
+import { bump, seen } from "@/lib/stats";
 import { client, ownerOf } from "@/lib/chain";
 import { CHOG_TOKEN } from "@/lib/config";
 import { decodeEventLog, formatUnits, getAddress, parseAbi } from "viem";
@@ -135,8 +136,9 @@ function broadcast(I: Island) {
   for (const send of I.clients) send("island", v);
 }
 
-export async function subscribe(send: Send) {
+export async function subscribe(send: Send, vid?: string) {
   const I = await island();
+  seen(vid).catch(() => {}); bump("views").catch(() => {});
   I.clients.add(send);
   send("island", view(I));
   return () => I.clients.delete(send);
@@ -182,6 +184,7 @@ export async function join(vid: string, id: number) {
   const p = I.players.get(id);
   if (p && p.vid !== vid && p.until > Date.now()) return { ok: false, error: `Someone else is playing ${c.name} right now.` };
   I.players.set(id, { vid, until: Date.now() + 5 * 60_000, busy: p?.busy ?? false, cool: p?.cool ?? 0 });
+  seen(vid, true).catch(() => {});
   I.sim.control(id, true);
   return { ok: true };
 }
@@ -220,6 +223,7 @@ export async function play(vid: string, id: number, target: number, card: CardKe
   const sc = I.sim.scene(id, target, null, () => { p.busy = false; });
   if (!sc) return { ok: false, error: "Couldn't get over there. Try again." };
   p.busy = true; p.cool = Date.now() + 8000;
+  bump(`card_${card}`).catch(() => {}); bump("scenes").catch(() => {});
 
   const [a, b] = await Promise.all([chogFor(I, id), chogFor(I, target)]);
   const f = feudOf(I, id, target);
@@ -306,6 +310,7 @@ export async function betMain(vid: string, side: "a" | "b", amount: number, name
   const left = await adjust(vid, -amount, name);
   if (left === null) return { ok: false, error: "Not enough chips. Spin the slots or come back tomorrow." };
   m.bets[vid] = { side, amount: (prev?.amount ?? 0) + amount, name };
+  bump("bets").catch(() => {}); bump("chips_bet", amount).catch(() => {});
   m.picks[vid] = side;
   I.changed = -1; // tell viewers the odds moved
   return { ok: true, chips: left, bet: m.bets[vid], pool: pools(m) };
@@ -345,6 +350,7 @@ async function bookMain(I: Island, aId: number, bId: number, why: string, lead =
     winner: result.won ? "a" : "b", result, picks: {}, done: false, bets: {},
   };
   I.main = m;
+  bump("main_events").catch(() => {});
   I.recent = [key(aId, bId), ...(I.recent ?? [])].slice(0, 4);
   I.nextMain = Date.now() + AUTO_MAIN_EVERY_MS;
   gazette(`MAIN EVENT: ${label(a)} vs ${label(b)} at the Royal Amphitheatre. ${why}`, [aId, bId]);
@@ -438,6 +444,7 @@ export async function tip(from: string, id: number, hash: `0x${string}`) {
   }
   if (amount <= 0) return { ok: false, error: "No $CHOG went from your wallet to that Chog's holder in this transaction." };
   await store().set("tiptx", hash, { hash, id, from, amount, t: Date.now() });
+  bump("tips").catch(() => {}); bump("chog_tipped", Math.round(amount)).catch(() => {});
   const t = I.tips.get(id) ?? { id, total: 0, count: 0, last: null };
   t.total += amount; t.count++; t.last = { from: getAddress(from), amount, t: Date.now() };
   I.tips.set(id, t);

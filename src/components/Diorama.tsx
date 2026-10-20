@@ -43,9 +43,11 @@ function cover(art: Art, W: number, H: number, ax = .5, ay = .5) {
   return { s, w, h, x: (W - w) * ax, y: (H - h) * ay };
 }
 
+// phones: the top quarter of the portrait render is sky, so zoom until the island fills the screen,
+// trimming a little off each side (every place stays on screen)
 function fitWidth(art: Art, W: number, H: number) {
-  const s = Math.max(W / art.w, (H * .78) / art.h), w = art.w * s, h = art.h * s;
-  return { s, w, h, x: (W - w) / 2, y: H - h + h * .04 };
+  const s = Math.max(W / art.w, (H * .9) / (art.h * .8)), w = art.w * s, h = art.h * s;
+  return { s, w, h, x: (W - w) / 2, y: Math.min(70 - h * .205, H - h * .97) };
 }
 
 export interface DioramaHandle { bounce(): void }

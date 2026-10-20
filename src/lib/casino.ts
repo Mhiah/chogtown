@@ -6,6 +6,7 @@
 import { store } from "./store";
 import { today } from "./config";
 import type { TownEvent } from "./night";
+import { bump } from "./stats";
 
 export const START_CHIPS = 500;
 export const DAILY_CHIPS = 200;
@@ -57,6 +58,7 @@ export async function spin(vid: string, bet: number, name?: string, highRoller =
   const reels = [roll(), roll(), roll()];
   const { x, line } = payout(reels);
   const win = bet * x;
+  bump("spins").catch(() => {});
   w.chips += win - bet; w.spins++; w.won += Math.max(0, win - bet); w.best = Math.max(w.best, win);
   if (x === 50) {
     w.jackpots++;
