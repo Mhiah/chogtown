@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaceKey } from "./types";
+// @ts-ignore plain JS sim + renderer
+import { createSim } from "@/live/sim";
+// @ts-ignore
+import { drawIsland } from "@/live/render";
 import { PLACES } from "./types";
 
 /**
@@ -49,6 +53,11 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<PlaceKey | null>(null);
   const [jump, setJump] = useState(0);
+  const live = useRef<HTMLCanvasElement>(null);
+  const simRef = useRef<any>(null);
+  const hits = useRef<{ id: number; x: number; y: number; w: number; h: number }[]>([]);
+  const hoverChog = useRef<number | null>(null);
+  const [chogTag, setChogTag] = useState(false);
 
   useEffect(() => {
     const r = () => setSize({ W: innerWidth, H: innerHeight });
@@ -69,10 +78,53 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
   const at = useCallback((p: Spot) => ({ left: c.x + p.x * c.w, top: c.y + p.y * c.h }), [c.x, c.y, c.w, c.h]);
   const px = tilt.x * -10, py = tilt.y * -6;
 
+  // the live island: everyone awake walks the paths and talks
+  useEffect(() => {
+    let dead = false;
+    fetch("/api/live/cast").then((r) => r.json()).then((d) => {
+      if (dead || !d.cast) return;
+      simRef.current = createSim(d.cast, { seed: Math.floor(Date.now() / 864e5) });
+      simRef.current.step(0);
+      (window as any).__island = simRef.current;
+    }).catch(() => {});
+    return () => { dead = true; };
+  }, []);
+  const view = useRef({ W: 0, H: 0, base: 0, which: "w", dpr: 1, still: false });
+  view.current = { W: c.w, H: c.h, base: (tall ? .044 : .025) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
+  useEffect(() => {
+    const cv = live.current; if (!cv) return;
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0, last = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(.1, (now - last) / 1000); last = now;
+      const sim = simRef.current, v = view.current;
+      if (!sim || !v.W) return;
+      if (cv.width !== Math.round(v.W * v.dpr)) { cv.width = Math.round(v.W * v.dpr); cv.height = Math.round(v.H * v.dpr); }
+      sim.step(dt);
+      hits.current = drawIsland(cv.getContext("2d")!, sim, { ...v, still }, sim.t, hoverChog.current);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  // hover a Chog to see who it is (the canvas lets clicks through to the place spots)
+  useEffect(() => {
+    const m = (e: PointerEvent) => {
+      const cv = live.current; if (!cv) return;
+      const b = cv.getBoundingClientRect(), sx = b.width / view.current.W || 1;
+      const x = (e.clientX - b.left) / sx, y = (e.clientY - b.top) / sx;
+      let id: number | null = null;
+      for (const h of hits.current) if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) id = h.id;
+      hoverChog.current = id; setChogTag(id !== null);
+    };
+    addEventListener("pointermove", m); return () => removeEventListener("pointermove", m);
+  }, []);
+
   return (
     <div ref={box} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
       <div className="dio-world" style={{ transform: `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})` }}>
         <img className="dio-art" src={art.src} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} draggable={false} />
+        <canvas ref={live} className={`dio-live${chogTag ? " hot" : ""}`} aria-hidden="true" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} />
         <img key={jump} className="dio-toy" src="/toy/wave.webp" alt="" draggable={false}
           style={{ left: c.x + art.toy.x * c.w, top: c.y + art.toy.y * c.h, width: art.toy.size * c.w }} />
         {!active && entered && PLACES.map((p) => (
