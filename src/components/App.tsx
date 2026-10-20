@@ -136,7 +136,7 @@ export default function App() {
             <button className="btn" onClick={() => setEntered(true)}>Enter town →</button>
             <button className="btn ghost" onClick={() => open("home")}>Visit any Chog</button>
           </div>
-          <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>5</b><span>places</span></div><div><b>every night</b><span>new gossip</span></div></div>
+          <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>{PLACES.length}</b><span>places</span></div><div><b>every night</b><span>new gossip</span></div></div>
         </div>
       </section>
 
