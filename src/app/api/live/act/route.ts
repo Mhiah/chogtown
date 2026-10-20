@@ -1,5 +1,5 @@
 import { json, fail } from "@/lib/api";
-import { getSession } from "@/lib/session";
+import { getSession, setSession, newVid } from "@/lib/session";
 import { join, walk, play, pickSide, ringNow, CARDS, type CardKey } from "@/live/island";
 
 export const dynamic = "force-dynamic";
@@ -18,12 +18,15 @@ export async function POST(req: Request) {
     if (!dev && (!process.env.CRON_SECRET || req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`)) return fail("Not allowed.", 401);
     return json(await ringNow());
   }
-  if (!s) return fail("Pick a Chog to play first.", 401);
   if (b.kind === "pick") {
+    // anyone watching can call a side, no Chog needed
+    let v = s;
+    if (!v) { v = { vid: newVid() }; await setSession(v); }
     if (b.side !== "a" && b.side !== "b") return fail("Pick a side.");
-    const r = await pickSide(s.vid, b.side);
+    const r = await pickSide(v.vid, b.side);
     return r.ok ? json(r) : fail(r.error!);
   }
+  if (!s) return fail("Pick a Chog to play first.", 401);
   if (!s.tokenId) return fail("Pick a Chog to play first.", 401);
   let r: { ok: boolean; error?: string };
   if (b.kind === "join") r = await join(s.vid, s.tokenId);
