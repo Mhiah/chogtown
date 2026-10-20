@@ -1,5 +1,11 @@
 import { IPFS_GATEWAYS } from "./config";
 import { tokenURI } from "./chain";
+import BUNDLED from "@/data/chogs.json";
+
+/** All 1,969 Chogs' traits, read from the collection once and shipped with the app, so the town never waits on IPFS. */
+const LOCAL = BUNDLED as unknown as Record<string, { n: number; name: string; traits: Traits }>;
+/** The Chog's art, served from our own origin (320px WebP in public/art). */
+export const artUrl = (tokenId: number) => (LOCAL[tokenId] ? `/art/${LOCAL[tokenId].n}.webp` : null);
 
 export type Traits = Record<string, string>;
 export interface ChogMeta {
@@ -34,6 +40,8 @@ export async function fetchIpfs(u: string, timeout = 8000) {
 
 /** Reads the Chog's metadata from its tokenURI. Falls back to stand-in traits so the town still works offline. */
 export async function fetchMeta(tokenId: number): Promise<ChogMeta> {
+  const local = LOCAL[tokenId];
+  if (local) return { name: local.name, image: artUrl(tokenId), traits: local.traits, real: true };
   const uri = await tokenURI(tokenId);
   if (uri) {
     try {

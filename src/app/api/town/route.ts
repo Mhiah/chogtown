@@ -2,7 +2,7 @@ import { json } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { store } from "@/lib/store";
 import { ensureTown, feed, runNight } from "@/lib/night";
-import { dayBefore, today } from "@/lib/config";
+import { dayBefore, today, CHOG_SUPPLY } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,7 +22,8 @@ export async function GET() {
   const s = await getSession();
   const events = await feed();
   return json({
-    population: chogs.length,
+    population: CHOG_SUPPLY,
+    awake: chogs.length,
     events: events.map((e) => ({ id: e.id, day: e.day, t: e.t, tag: e.tag, text: e.text, chogs: e.chogs, loves: e.lovedBy.length, loved: !!s && e.lovedBy.includes(s.vid) })),
   });
 }

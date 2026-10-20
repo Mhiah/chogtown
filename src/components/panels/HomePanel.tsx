@@ -24,9 +24,10 @@ function SignIn({ shell }: { shell: Shell }) {
     catch (e) { setErr((e as { code?: number })?.code === 4001 ? "You cancelled the signature. No problem, try again when ready." : errMsg(e)); }
     setBusy("");
   };
-  const guest = async () => {
+  const [visit, setVisit] = useState("");
+  const guest = async (tokenId?: number) => {
     setBusy("guest");
-    try { await api("/api/auth/guest", {}); await shell.refreshMe(); } catch (e) { setErr(errMsg(e)); }
+    try { await api("/api/auth/guest", tokenId ? { tokenId } : {}); await shell.refreshMe(); } catch (e) { setErr(errMsg(e)); }
     setBusy("");
   };
   return (
@@ -40,8 +41,14 @@ function SignIn({ shell }: { shell: Shell }) {
       </div>
       <div className="card">
         <div className="k">Just looking?</div>
-        <button className="btn ghost block" onClick={guest} disabled={!!busy}>{busy === "guest" ? "Opening…" : "Look around as a guest"}</button>
-        <p className="note">Chat with a resident Chog. Only owners can shape a Chog or keep a streak.</p>
+        <button className="btn ghost block" onClick={() => guest()} disabled={!!busy}>{busy === "guest" ? "Opening…" : "Look around as a guest"}</button>
+        <form className="field" onSubmit={(e) => { e.preventDefault(); if (visit) guest(Number(visit)); }}>
+          <label className="sr" htmlFor="visit-num">Visit any Chog by number</label>
+          <input id="visit-num" inputMode="numeric" placeholder="or visit any Chog, 1 to 1969" value={visit} onChange={(e) => setVisit(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+          <button className="btn violet" disabled={!!busy || !visit}>Visit</button>
+          <button type="button" className="btn ghost" disabled={!!busy} onClick={() => guest(1 + Math.floor(Math.random() * 1969))}>Random</button>
+        </form>
+        <p className="note">Chat with any of the 1,969 Chogs and take it into the Amphitheatre. Only owners can shape a Chog or keep a streak.</p>
       </div>
     </>
   );
