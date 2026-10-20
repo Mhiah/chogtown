@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @ts-nocheck
 /* What Chogs say to each other in passing, by archetype. {o} = the other Chog's name. AI writes the big scenes. */
 export const LINES = {

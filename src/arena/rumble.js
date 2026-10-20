@@ -15,7 +15,9 @@ const MATCH_S = 120;
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const len = (x, z) => Math.hypot(x, z) || 1e-6;
-const rnd = (a, b) => a + Math.random() * (b - a);
+const rnd = (a, b) => a + Math.random() * (b - a); // cosmetic only
+const mulberry = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const TICK = 1 / 60;
 
 /* Opponent personalities, from the town's archetypes. range = preferred distance. */
 const AI = {
@@ -29,20 +31,30 @@ const AI = {
   knowitall:  { range: 210, aggro: .7,  edge: 1,  spc: .7, dash: .6, jitter: .03 },
 };
 
-/** @param {{ canvas: HTMLCanvasElement, me: any, foe: any, onEnd?: (r: any) => void, onEvent?: (e: any) => void, hard?: boolean }} o */
-export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, auto = false }){
-  const ctx = canvas.getContext('2d');
+/**
+ * seed: makes the fight deterministic (every random choice that matters comes from it), so a Main Event
+ * plays out identically for every viewer and on the server. startAt (ms epoch): play in sync with the
+ * wall clock from that moment, fast-forwarding if you join late. No canvas: headless, call run().
+ * @param {{ canvas?: HTMLCanvasElement, me: any, foe: any, onEnd?: (r: any) => void, onEvent?: (e: any) => void, hard?: boolean, auto?: boolean, seed?: number, startAt?: number, spectate?: boolean }} o
+ */
+export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, auto = false, seed = null, startAt = null, spectate = false }){
+  const headless = !canvas;
+  const G = seed != null ? mulberry(seed) : Math.random; // game randomness
+  const rg = (a, b) => a + G() * (b - a);
+  const later = []; // { at, f } things that happen a moment later, in game time
+  const ctx = headless ? null : canvas.getContext('2d');
   let W = 0, H = 0, dpr = 1, S = 1, CX = 0, CY = 0;
   function resize(){
+    if (headless) return;
     dpr = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight;
     canvas.width = W * dpr; canvas.height = H * dpr;
     const narrow = W < 600;
     S = narrow ? Math.min(W * .96 / (R * 2), H / ((R * 2 * TILT) + 260)) : Math.min(W / (R * 2 + 140), H / ((R * 2 * TILT) + 300));
     CX = W / 2; CY = narrow ? H * .5 : H * .56;
   }
-  resize(); addEventListener('resize', resize);
+  resize(); if (!headless) addEventListener('resize', resize);
 
-  const img = src => { const i = new Image(); i.src = src; return i; };
+  const img = src => { if (headless) return { complete: false }; const i = new Image(); i.src = src; return i; };
   const mk = (who, side) => ({
     who, side, kit: who.kit, img: img(who.image), name: who.name,
     x: side ? 130 : -130, z: 0, vx: 0, vz: 0, y: 0, vy: 0,
@@ -54,7 +66,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     flash: 0, squash: 0, walk: 0, dealt: 0, ringouts: 0, combo: 0,
   });
   const P = [mk(me, 0), mk(foe, 1)];
-  const brain = who => ({ A: AI[who.archetype] || AI.brawler, t: 0, input: { mx: 0, mz: 0, ax: -1, az: 0, atk: false, spc: false, dash: false }, strafe: Math.random() < .5 ? 1 : -1 });
+  const brain = who => ({ A: AI[who.archetype] || AI.brawler, t: 0, input: { mx: 0, mz: 0, ax: -1, az: 0, atk: false, spc: false, dash: false }, strafe: G() < .5 ? 1 : -1 });
   const brains = [brain(me), brain(foe)];
 
   let shots = [], beams = [], puddles = [], waves = [], fx = [], texts = [], frogs = [];
@@ -76,12 +88,12 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     if (k === ' ' || k === 'shift' || k === 'l' || k === 'c') input.dash = true;
   };
   const ku = e => keys.delete(e.key.toLowerCase());
-  addEventListener('keydown', kd); addEventListener('keyup', ku);
+  if (!headless && !auto) { addEventListener('keydown', kd); addEventListener('keyup', ku); }
   const toWorld = (sx, sy) => ({ x: (sx - CX) / S, z: (sy - CY) / (S * TILT) });
   const mm = e => { const b = canvas.getBoundingClientRect(); const w = toWorld(e.clientX - b.left, e.clientY - b.top); const p = P[0]; const dx = w.x - p.x, dz = w.z - p.z, l = len(dx, dz); input.ax = dx / l; input.az = dz / l; input.mouse = true; };
   const md = e => { if (e.pointerType === 'touch') return; unlock(); mm(e); if (e.button === 2) input.spc = true; else input.atk = true; };
   const cm = e => e.preventDefault();
-  canvas.addEventListener('pointermove', mm); canvas.addEventListener('pointerdown', md); canvas.addEventListener('contextmenu', cm);
+  if (!headless && !auto) { canvas.addEventListener('pointermove', mm); canvas.addEventListener('pointerdown', md); canvas.addEventListener('contextmenu', cm); }
 
   function readInput(){
     let mx = 0, mz = 0;
@@ -109,10 +121,10 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function hit(t, src, o){
     if (t.state !== 'ok' || t.invuln > 0) return false;
     if (t.dashT > 0 && t.kit.dash.kind === 'roll') return false;
-    if (o.shot && t.kit.aura.kind === 'smoke' && Math.random() < .22){ say(t.x, t.z, 'phased', '#d6d0e4'); return false; }
+    if (o.shot && t.kit.aura.kind === 'smoke' && G() < .22){ say(t.x, t.z, 'phased', '#d6d0e4'); return false; }
     if (t.shield > 0){ if (o.shot) return 'reflect'; spark(t.x, t.z, '#ff9bcb', 6); return false; }
     let dmg = o.dmg * mult(src), crit = false;
-    if (src.kit.acc.kind === 'lucky' && Math.random() < .12){ dmg *= 1.6; crit = true; }
+    if (src.kit.acc.kind === 'lucky' && G() < .12){ dmg *= 1.6; crit = true; }
     if (src.grin > 0 && o.dmg > 1){ src.grin = 0; say(src.x, src.z, 'GRIN POWER', '#f4ce87'); }
     t.dmg = Math.min(999, t.dmg + dmg); src.dealt += dmg; t.lastHit = `${o.kind || (o.shot ? 'shot' : 'melee')}:${o.kb}`;
     if (src.kit.aura.kind === 'leech') src.dmg = Math.max(0, src.dmg - dmg * .3);
@@ -151,7 +163,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     const dir = (da, sp) => ({ vx: Math.cos(a + da) * sp, vz: Math.sin(a + da) * sp });
     if (e === 'tears'){ [-.26, 0, .26].forEach(d => shoot(p, { ...dir(d, 560), life: .45, dmg: 3, kb: 3.6, color: col, kind: 'tear' })); sfx.tears(); }
     if (e === 'hearts'){ shoot(p, { ...dir(0, 380), life: 1.6, dmg: 4, kb: 3, charm: .7, homing: 3.2, color: col, kind: 'heart', r: 11 }); sfx.heart(); }
-    if (e === 'bolts'){ shoot(p, { ...dir(-.04, 760), life: .6, dmg: 3.5, kb: 3, color: col, kind: 'bolt' }); setTimeout(() => !over && p.state === 'ok' && shoot(p, { ...dir(.04, 760), life: .6, dmg: 3.5, kb: 3, color: col, kind: 'bolt' }), 80); sfx.bolt(); }
+    if (e === 'bolts'){ shoot(p, { ...dir(-.04, 760), life: .6, dmg: 3.5, kb: 3, color: col, kind: 'bolt' }); later.push({ at: time + .08, f: () => !over && p.state === 'ok' && shoot(p, { ...dir(.04, 760), life: .6, dmg: 3.5, kb: 3, color: col, kind: 'bolt' }) }); sfx.bolt(); }
     if (e === 'stare'){ shoot(p, { ...dir(0, 300), life: 1.4, dmg: 7, kb: 6, stun: .45, color: col, kind: 'stare', r: 17 }); sfx.stare(); }
     if (e === 'spit'){ shoot(p, { ...dir(0, 620), life: .7, dmg: 5, kb: 4.6, color: col, kind: 'spit' }); sfx.spit(); }
   }
@@ -201,35 +213,35 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     ai.t -= dt; I.atk = I.spc = I.dash = false;
     const dx = o.x - p.x, dz = o.z - p.z, d = len(dx, dz), myR = len(p.x, p.z), foeR = len(o.x, o.z);
     const err = (hard ? .05 : .16) + A.jitter * .2;
-    const aimA = Math.atan2(dz + o.vz * .12, dx + o.vx * .12) + rnd(-err, err);
+    const aimA = Math.atan2(dz + o.vz * .12, dx + o.vx * .12) + rg(-err, err);
     I.ax = Math.cos(aimA); I.az = Math.sin(aimA);
     if (ai.t > 0) return;
-    ai.t = (hard ? .1 : .17) + Math.random() * .1;
+    ai.t = (hard ? .1 : .17) + G() * .1;
     let mx = 0, mz = 0;
     // keep to preferred range, strafe around
     const want = A.range * (o.dmg > 90 ? .6 : 1);
     const toward = d > want ? 1 : d < want * .6 ? -1 : 0;
     mx += dx / d * toward; mz += dz / d * toward;
-    if (Math.random() < .03) ai.strafe *= -1;
+    if (G() < .03) ai.strafe *= -1;
     mx += -dz / d * ai.strafe * .7; mz += dx / d * ai.strafe * .7;
     if (A.flank){ const bx = o.x - o.face.x * 90, bz = o.z - o.face.z * 90; mx += (bx - p.x) / 200; mz += (bz - p.z) / 200; }
     // stay away from the edge
     if (myR > R * (.62 + (1 - A.edge) * .2)){ mx -= p.x / myR * 1.6 * A.edge; mz -= p.z / myR * 1.6 * A.edge; }
-    mx += rnd(-1, 1) * A.jitter; mz += rnd(-1, 1) * A.jitter;
+    mx += rg(-1, 1) * A.jitter; mz += rg(-1, 1) * A.jitter;
     const l = Math.hypot(mx, mz) || 1; I.mx = mx / l; I.mz = mz / l;
     // attack when lined up and in range
     const e = p.kit.eyes.kind, range = { laser: 370, tears: 240, hearts: 520, bolts: 420, stare: 380, spit: 400 }[e];
-    if (d < range && Math.random() < .55 + A.aggro * .4) I.atk = true;
+    if (d < range && G() < .55 + A.aggro * .4) I.atk = true;
     // special
     const m = p.kit.mouth.kind, sr = { puke: 230, bubble: 999, drool: 240, coins: 360, honk: 150, chomp: 190, wail: 240, grin: 999 }[m];
-    let useS = d < sr && Math.random() < A.spc * .6;
-    if (m === 'grin') useS = p.dmg > 55 && Math.random() < .5;
-    if (m === 'bubble') useS = shots.some(s => s.owner !== side && len(s.x - p.x, s.z - p.z) < 160) || (d < 110 && Math.random() < .3);
+    let useS = d < sr && G() < A.spc * .6;
+    if (m === 'grin') useS = p.dmg > 55 && G() < .5;
+    if (m === 'bubble') useS = shots.some(s => s.owner !== side && len(s.x - p.x, s.z - p.z) < 160) || (d < 110 && G() < .3);
     if (useS) I.spc = true;
     // dash: finish an opponent near the edge, or escape the edge
-    if (foeR > R * .55 && d < 220 && Math.random() < A.dash * .7) { I.dash = true; I.dashX = dx; I.dashZ = dz; }
-    else if (myR > R * .85 && Math.random() < .6) { I.dash = true; I.dashX = -p.x; I.dashZ = -p.z; }
-    else if (d < 90 && Math.random() < A.dash * .25) { I.dash = true; I.dashX = dx; I.dashZ = dz; }
+    if (foeR > R * .55 && d < 220 && G() < A.dash * .7) { I.dash = true; I.dashX = dx; I.dashZ = dz; }
+    else if (myR > R * .85 && G() < .6) { I.dash = true; I.dashX = -p.x; I.dashZ = -p.z; }
+    else if (d < 90 && G() < A.dash * .25) { I.dash = true; I.dashX = dx; I.dashZ = dz; }
   }
 
   /* ---------- step ---------- */
@@ -265,7 +277,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     // rainbow stream
     if (p.puke > 0){
       p.puke -= dt; p.pukeTick -= dt;
-      if (p.pukeTick <= 0){ p.pukeTick = .045; const a = Math.atan2(p.face.z, p.face.x) + rnd(-.38, .38), hue = (p.t * 600) % 360;
+      if (p.pukeTick <= 0){ p.pukeTick = .045; const a = Math.atan2(p.face.z, p.face.x) + rg(-.38, .38), hue = (p.t * 600) % 360;
         shoot(p, { vx: Math.cos(a) * 520, vz: Math.sin(a) * 520, life: .36, dmg: .9, kb: 1.7, color: `hsl(${hue},95%,65%)`, kind: 'puke', r: 9, noStop: true }); }
     }
     // dash / lunge movement
@@ -299,7 +311,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     p.x += p.vx * dt; p.z += p.vz * dt;
     p.walk += Math.hypot(p.vx, p.vz) * dt * .05;
     // banana peels
-    for (const u of puddles) if (u.kind === 'peel' && u.owner !== p.side && !u.used && len(u.x - p.x, u.z - p.z) < u.r + p.r * .5){ u.used = true; u.life = .3; p.stun = .5; p.vx += rnd(-300, 300); p.vz += rnd(-300, 300); say(p.x, p.z, 'SLIP', '#ffe27a', true); sfx.pop(); }
+    for (const u of puddles) if (u.kind === 'peel' && u.owner !== p.side && !u.used && len(u.x - p.x, u.z - p.z) < u.r + p.r * .5){ u.used = true; u.life = .3; p.stun = .5; p.vx += rg(-300, 300); p.vz += rg(-300, 300); say(p.x, p.z, 'SLIP', '#ffe27a', true); sfx.pop(); }
     // ring-out
     const d = len(p.x, p.z);
     if (d > R + 4){
@@ -323,11 +335,12 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     if (over) return; over = true; phase = 'end'; phaseT = 0;
     result = { won, myStocks: P[0].stocks, foeStocks: P[1].stocks, seconds: Math.round(MATCH_S - clock), dealt: Math.round(P[0].dealt), taken: Math.round(P[1].dealt), ringouts: P[0].ringouts };
     won ? sfx.win() : sfx.lose(); sfx.crowd(.5);
-    setTimeout(() => onEnd?.(result), 1600);
+    if (!headless) setTimeout(() => onEnd?.(result), 1600);
   }
 
   function step(dt){
     time += dt;
+    for (let i = later.length - 1; i >= 0; i--) if (time >= later[i].at) { const l = later.splice(i, 1)[0]; l.f(); }
     if (phase === 'intro'){ phaseT += dt; const n = Math.ceil(3 - phaseT); if (n !== step.last && n > 0){ step.last = n; sfx.count(); } if (phaseT > 3){ phase = 'fight'; sfx.go(); sfx.crowd(.35); } }
     if (phase === 'fight'){
       clock -= dt;
@@ -520,7 +533,10 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     const m = Math.floor(clock / 60), s = Math.floor(clock % 60); ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2, narrow ? top + ch + 28 : 44);
     if (phase === 'intro'){ const n = Math.ceil(3 - phaseT); big(n > 0 ? String(n) : 'RUMBLE!', '#ffbf3c'); }
     if (phase === 'fight' && time < 3.8 + 0.6) big('RUMBLE!', '#ffbf3c', Math.max(0, 1 - (time - 3) * 1.6));
-    if (phase === 'end' && result && phaseT < 1.5) big(result.won ? 'YOU WIN' : 'KNOCKED OUT', result.won ? '#f4ce87' : '#ff9bcb', 1 - phaseT / 1.5);
+    if (phase === 'end' && result && phaseT < 1.5) {
+      if (spectate) big(`${(result.won ? me : foe).name.toUpperCase()} WINS`, '#f4ce87', 1 - phaseT / 1.5);
+      else big(result.won ? 'YOU WIN' : 'KNOCKED OUT', result.won ? '#f4ce87' : '#ff9bcb', 1 - phaseT / 1.5);
+    }
   }
   function big(text, color, alpha = 1){
     if (alpha <= 0) return;
@@ -531,15 +547,22 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function shade(hex, k){ const n = parseInt(hex.slice(1), 16), f = c => clamp(Math.round(c * (1 + k)), 0, 255); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
 
   /* ---------- loop ---------- */
-  let last = performance.now(), raf = 0, dead = false;
-  function frame(now){
-    const raw = Math.min(.05, (now - last) / 1000); last = now;
+  let last = performance.now(), raf = 0, dead = false, ticks = 0;
+  function advance(raw){
     if (hitstop > 0) hitstop -= raw;
     else { slowmo += (1 - slowmo) * Math.min(1, raw * 2.2); step(raw * slowmo); }
-    draw();
+  }
+  // synced fights move in fixed ticks counted from startAt, so every viewer sees the same frame at the same moment
+  function tick(){ advance(TICK); ticks++; }
+  function frame(now){
+    if (startAt != null || seed != null && headless) {
+      const want = startAt != null ? Math.floor((Date.now() - startAt) / 1000 * 60) : ticks;
+      for (let n = 0; ticks < want && n < 3600; n++) tick();
+    } else { const raw = Math.min(.05, (now - last) / 1000); last = now; advance(raw); }
+    if (!headless) draw();
   }
   function loop(now){ if (dead) return; frame(now); raf = requestAnimationFrame(loop); }
-  raf = requestAnimationFrame(loop);
+  if (!headless) raf = requestAnimationFrame(loop);
 
   return {
     /** mobile controls */
@@ -548,7 +571,9 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     cooldowns(){ const p = P[0]; return { atk: p.cd.atk, spc: Math.max(0, p.cd.spc), dash: Math.max(0, p.cd.dash), charges: p.charges }; },
     /** advance by hand (headless checks, demo capture) */
     step(n = 60){ for (let i = 0; i < n; i++){ last -= 1000 / 60; frame(performance.now()); } },
-    state(){ return { phase, clock, P: P.map(p => ({ x: p.x, z: p.z, dmg: p.dmg, stocks: p.stocks, state: p.state })), result }; },
-    dispose(){ dead = true; cancelAnimationFrame(raf); removeEventListener('resize', resize); removeEventListener('keydown', kd); removeEventListener('keyup', ku); canvas.removeEventListener('pointermove', mm); canvas.removeEventListener('pointerdown', md); canvas.removeEventListener('contextmenu', cm); },
+    state(){ return { phase, clock, ticks, P: P.map(p => ({ x: p.x, z: p.z, dmg: p.dmg, stocks: p.stocks, state: p.state })), result }; },
+    /** headless: play the whole fight now and return the result and how many ticks it took */
+    run(){ while (!over && ticks < 60 * 400) tick(); return { ...result, ticks }; },
+    dispose(){ dead = true; if (headless) return; cancelAnimationFrame(raf); removeEventListener('resize', resize); removeEventListener('keydown', kd); removeEventListener('keyup', ku); canvas.removeEventListener('pointermove', mm); canvas.removeEventListener('pointerdown', md); canvas.removeEventListener('contextmenu', cm); },
   };
 }

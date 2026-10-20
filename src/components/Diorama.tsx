@@ -1,11 +1,11 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaceKey } from "./types";
-// @ts-ignore plain JS sim + renderer
 import { createSim } from "@/live/sim";
-// @ts-ignore
 import { drawIsland } from "@/live/render";
+import { NODES } from "@/live/map";
 import { PLACES } from "./types";
 
 /**
@@ -47,7 +47,18 @@ function fitWidth(art: Art, W: number, H: number) {
 
 export interface DioramaHandle { bounce(): void }
 
-export default function Diorama({ active, entered, onOpen, bounceKey }: { active: PlaceKey | null; entered: boolean; onOpen(k: PlaceKey): void; bounceKey: number }) {
+export interface LiveView {
+  now: number; t: number; rally: boolean; players: number[];
+  feuds: { a: number; b: number; an: string; bn: string; heat: number; stage: number }[];
+  main: MainView | null; lastMain: MainView | null;
+  chogs: { id: number; name: string; archetype: string; image: string | null; out: boolean }[];
+}
+export interface MainView { id: string; a: any; b: any; seed: number; why: string; bellAt: number; startAt: number; endAt: number; picks: { a: number; b: number }; done: boolean; winner: "a" | "b" | null }
+
+export default function Diorama({ active, entered, onOpen, bounceKey, mine, onChog, onWalk, onLive }: {
+  active: PlaceKey | null; entered: boolean; onOpen(k: PlaceKey): void; bounceKey: number;
+  mine?: number | null; onChog?(id: number, x: number, y: number): void; onWalk?(node: string): void; onLive?(v: LiveView): void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ W: 1440, H: 900 });
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -72,6 +83,20 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
     const m = (e: PointerEvent) => setTilt({ x: (e.clientX / innerWidth - .5) * 2, y: (e.clientY / innerHeight - .5) * 2 });
     addEventListener("pointermove", m); return () => removeEventListener("pointermove", m);
   }, []);
+  // tap a Chog to see it (and play cards on it); tap the island to walk your own Chog there
+  const tap = (e: React.MouseEvent) => {
+    const cv = live.current; if (!cv || !entered || active) return;
+    const b = cv.getBoundingClientRect(), sx = b.width / view.current.W || 1;
+    const x = (e.clientX - b.left) / sx, y = (e.clientY - b.top) / sx;
+    let id: number | null = null;
+    for (const h of hits.current) if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) id = h.id;
+    if (id !== null) { onChog?.(id, e.clientX, e.clientY); return; }
+    if (!mineRef.current || !onWalk) return;
+    const fx = (e.clientX - b.left) / b.width, fy = (e.clientY - b.top) / b.height, which = view.current.which;
+    let best: string | null = null, bd = .06;
+    for (const n of NODES) { const [nx, ny] = (n as any)[which] as number[]; const d = Math.hypot(nx - fx, (ny - fy) * (which === "t" ? .55 : 1)); if (d < bd) { bd = d; best = n.id; } }
+    if (best) onWalk(best);
+  };
 
   const tall = size.W / size.H < .9;
   const art = tall ? TALL : WIDE;
@@ -80,17 +105,31 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
   const at = useCallback((p: Spot) => ({ left: c.x + p.x * c.w, top: c.y + p.y * c.h }), [c.x, c.y, c.w, c.h]);
   const px = tilt.x * -10, py = tilt.y * -6;
 
-  // the live island: everyone awake walks the paths and talks
+  // the live island: the server runs it and streams it; every viewer sees the same Chogs in the same places.
+  // If the stream can't connect, the island still lives, run locally.
+  const liveCb = useRef(onLive); liveCb.current = onLive;
   useEffect(() => {
-    let dead = false;
-    fetch("/api/live/cast").then((r) => r.json()).then((d) => {
-      if (dead || !d.cast) return;
-      simRef.current = createSim(d.cast, { seed: Math.floor(Date.now() / 864e5) });
-      simRef.current.step(0);
-      (window as any).__island = simRef.current;
-    }).catch(() => {});
-    return () => { dead = true; };
+    let dead = false, local = false;
+    const follow = createSim([], { follow: true });
+    const es = new EventSource("/api/live/stream");
+    const fallback = setTimeout(() => {
+      if (dead || simRef.current) return;
+      local = true;
+      fetch("/api/live/cast").then((r) => r.json()).then((d) => {
+        if (dead || !d.cast || simRef.current !== null && !local) return;
+        simRef.current = createSim(d.cast, { seed: Math.floor(Date.now() / 864e5) });
+      }).catch(() => {});
+    }, 6000);
+    es.addEventListener("island", (e) => {
+      if (dead) return;
+      const v = JSON.parse((e as MessageEvent).data);
+      follow.load(v);
+      if (simRef.current !== follow) { simRef.current = follow; (window as any).__island = follow; }
+      liveCb.current?.(v);
+    });
+    return () => { dead = true; clearTimeout(fallback); es.close(); };
   }, []);
+  const mineRef = useRef(mine); mineRef.current = mine;
   const view = useRef({ W: 0, H: 0, base: 0, which: "w", dpr: 1, still: false });
   view.current = { W: c.w, H: c.h, base: (tall ? .042 : .022) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
   useEffect(() => {
@@ -104,6 +143,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
       if (!sim || !v.W) return;
       if (cv.width !== Math.round(v.W * v.dpr)) { cv.width = Math.round(v.W * v.dpr); cv.height = Math.round(v.H * v.dpr); }
       sim.step(dt);
+      for (const ch of sim.chogs) ch.mine = ch.id === mineRef.current;
       hits.current = drawIsland(cv.getContext("2d")!, sim, { ...v, still }, sim.t, hoverChog.current);
     };
     raf = requestAnimationFrame(loop);
@@ -123,7 +163,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
   }, []);
 
   return (
-    <div ref={box} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
+    <div ref={box} onClick={tap} className={`diorama${active ? " focused" : ""}${entered ? " entered" : ""}${chogTag ? " chog-hot" : ""}`} aria-label="Chogtown, a floating toy town. Use the buttons to visit each place.">
       <div className="dio-world" style={{ transform: `translate3d(${px}px, ${py}px, 0) scale(${active ? 1.08 : 1.02})` }}>
         <img className="dio-art" src={art.src} alt="" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} draggable={false} />
         <canvas ref={live} className={`dio-live${chogTag ? " hot" : ""}`} aria-hidden="true" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} />

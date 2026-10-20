@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @ts-nocheck
 /*
  * The island's walkable graph. Positions are fractions of each render (see Diorama.tsx), so the same

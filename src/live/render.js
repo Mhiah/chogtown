@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @ts-nocheck
 /*
  * Draws the live island on a canvas laid exactly over the island art: every Chog as a little standee

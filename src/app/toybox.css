@@ -234,3 +234,59 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .diorama .dio-spot:hover .dio-tag>span,.diorama .dio-spot.hot .dio-tag>span,.diorama .dio-spot:focus-visible .dio-tag>span{max-width:260px}
 .diorama .dio-spot .dio-tag img{width:34px;height:34px}
 .dio-count{position:absolute;left:30px;top:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--rose,#ff7aa8);color:#fff;font:800 11px/20px Nunito,system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 2px 6px rgba(43,27,90,.25)}
+.diorama.chog-hot{cursor:pointer}
+
+/* ---------- Chog Island live layer ---------- */
+.btn.small{min-height:36px;padding:0 14px;font-size:14px;border-radius:14px}
+.live-card{position:fixed;z-index:20;background:#fff;border-radius:24px;padding:14px;box-shadow:0 8px 0 var(--lip),0 30px 60px rgba(91,47,214,.22);display:flex;flex-direction:column;gap:10px;animation:liveIn .25s cubic-bezier(.3,1.5,.5,1)}
+@keyframes liveIn{from{opacity:0;transform:translateY(8px) scale(.96)}}
+.live-x{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;border:0;background:var(--soft2,#f3eeff);color:var(--royal);cursor:pointer;font-weight:800}
+.live-card-head{display:flex;gap:12px;align-items:center;padding-right:30px}
+.live-card-head img{width:58px;height:58px;border-radius:16px;box-shadow:0 0 0 3px #fff,0 4px 0 var(--lip)}
+.live-card-head b{display:block;font-family:var(--display);font-weight:600;font-size:18px;color:var(--ink);line-height:1.1}
+.live-card-head b span{color:var(--ink2);font-size:13px}
+.live-card-head em{font-style:normal;font-size:13px;font-weight:700;color:var(--rose)}
+.live-note{margin:0;font-size:13px;line-height:1.4;color:var(--ink2);font-weight:600}
+.live-feud{background:var(--soft2,#f3eeff);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.live-feud-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.stage{font-family:var(--display);font-weight:600;font-size:12.5px;padding:2px 9px;border-radius:999px;background:#ece6ff;color:var(--royal);text-transform:none;letter-spacing:0;white-space:nowrap}
+.stage.s1{background:#fff1d6;color:#b86e00}.stage.s2{background:#ffe0e8;color:#d83a6a}.stage.s3{background:#ff7aa8;color:#fff}.stage.s4{background:#2b1b5a;color:#ffbf3c}
+.heat{display:block;height:6px;border-radius:6px;background:#e7defd;overflow:hidden}
+.heat i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ffbf3c,#ff7aa8 60%,#e0245e)}
+.live-cards{display:flex;flex-direction:column;gap:6px}
+.live-cardbtn{display:flex;gap:10px;align-items:center;text-align:left;border:0;background:#fff;border-radius:14px;padding:8px 10px;cursor:pointer;box-shadow:inset 0 0 0 2px #ece6ff;transition:transform .15s,box-shadow .15s}
+.live-cardbtn:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 0 0 2px var(--royal)}
+.live-cardbtn:disabled{opacity:.45;cursor:not-allowed}
+.live-cardbtn .e{font-size:22px;width:30px;text-align:center}
+.live-cardbtn b{display:block;font-family:var(--display);font-weight:600;font-size:15px;color:var(--ink)}
+.live-cardbtn em{display:block;font-style:normal;font-size:12px;font-weight:600;color:var(--ink2)}
+.playbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(70px + env(safe-area-inset-top,0px));z-index:9;display:flex;align-items:center;gap:10px;background:#fff;border-radius:999px;padding:6px 8px 6px 16px;font-size:13.5px;font-weight:700;color:var(--ink2);box-shadow:0 5px 0 var(--lip),0 16px 30px rgba(91,47,214,.14);white-space:nowrap;max-width:calc(100% - 24px)}
+.playbar:not(:has(button)){padding:8px 16px}
+.playbar b{color:var(--ink)}
+.playbar .dot{width:9px;height:9px;border-radius:50%;background:#ff4f7f;box-shadow:0 0 0 4px rgba(255,79,127,.2);animation:ping 1.6s ease-out infinite}
+.feuds{position:fixed;left:16px;top:calc(76px + env(safe-area-inset-top,0px));z-index:8;border-radius:22px;padding:12px 14px;width:310px;display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.88)}
+.feud-row{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center}
+.feud-row .who{font-size:13px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feud-row .who i{font-style:normal;color:var(--rose);font-weight:700;margin:0 2px}
+.feud-row .heat{grid-column:1/-1;height:5px}
+.main-banner{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(118px + env(safe-area-inset-bottom,0px));z-index:12;display:flex;align-items:center;gap:10px;background:#2b1b5a;color:#fff;border-radius:999px;padding:6px 8px 6px 14px;font-size:14px;font-weight:700;box-shadow:0 6px 0 #160c36,0 20px 40px rgba(43,27,90,.35);animation:liveIn .3s cubic-bezier(.3,1.5,.5,1);max-width:calc(100% - 24px)}
+.main-banner b{color:#ffbf3c;font-family:var(--display);font-weight:600;letter-spacing:.04em;margin-right:4px}
+.main-banner .bell{font-size:20px;animation:bell 1.2s ease-in-out infinite;transform-origin:50% 10%}
+@keyframes bell{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(16deg)}20%,40%{transform:rotate(-16deg)}}
+.main-stage .main-eyebrow{grid-column:1/-1;text-align:center;font-family:var(--display);font-weight:600;font-size:18px;color:var(--rose);letter-spacing:.04em}
+.main-stage .vs-side .btn{margin-top:12px}
+.main-count{font-weight:700;color:var(--ink2);font-size:14px;margin-top:6px}
+.main-count b{color:var(--royal);font-size:18px}
+.main-live{position:absolute;left:50%;top:calc(96px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:#fff;color:#e0245e;font-weight:800;font-size:13px;border-radius:999px;padding:6px 14px;box-shadow:0 4px 0 var(--lip);white-space:nowrap}
+@media (max-width:700px){
+  .feuds{display:none}
+  .playbar{font-size:12px;top:calc(64px + env(safe-area-inset-top,0px));white-space:normal;border-radius:20px}
+  .main-banner{font-size:12.5px;bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+}
+.live-cards{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.live-cardbtn{padding:8px 10px;gap:8px}
+.live-cardbtn.wide{grid-column:1/-1;justify-content:center;background:#2b1b5a;box-shadow:none}
+.live-cardbtn.wide b{color:#ffbf3c}
+.live-cardbtn .e{font-size:18px;width:auto}
+.live-cardbtn b{font-size:14px}
+.live-note.hint{font-size:12px;min-height:2.6em}

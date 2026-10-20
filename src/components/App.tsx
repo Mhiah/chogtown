@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ctrlIcons } from "./icons";
-import Diorama from "./Diorama";
+import Diorama, { type LiveView } from "./Diorama";
+import { ChogCard, PlayBar, FeudTicker, MainEvent } from "./LiveLayer";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -26,6 +27,10 @@ export default function App() {
   const [clock, setClock] = useState("");
   const [population, setPopulation] = useState<number | null>(null);
   const toastT = useRef<ReturnType<typeof setTimeout>>();
+  const [live, setLive] = useState<LiveView | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState<{ id: number; x: number; y: number } | null>(null);
+  const onLive = useCallback((v: LiveView) => { setLive(v); setOffset(v.now - Date.now()); }, []);
 
   const toast = useCallback((t: string) => {
     setToastText(t); setToastOn(true);
@@ -52,6 +57,27 @@ export default function App() {
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
   }, [active, close]);
 
+  const myName = live?.chogs.find((c) => c.id === me?.tokenId)?.name ?? null;
+  const join = useCallback(async () => {
+    try { await api("/api/live/act", { kind: "join" }); toast("You're on the island. Tap anywhere to walk."); }
+    catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  }, [toast]);
+  const playAs = useCallback(async (id: number) => {
+    try {
+      if (me?.address) {
+        if (!(me.held?.ids ?? []).includes(id)) { toast("Signed in with a wallet, you play your own Chogs. Pick one in Your Chogmate."); return; }
+        await api("/api/me/chog", { tokenId: id });
+      } else await api("/api/auth/guest", { tokenId: id });
+      await refreshMe();
+      await api("/api/live/act", { kind: "join" });
+      toast("You're on the island. Tap anywhere to walk, tap a Chog for cards.");
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  }, [me, refreshMe, toast]);
+  const walk = useCallback((node: string) => {
+    if (!me?.tokenId || !live?.players.includes(me.tokenId)) return;
+    api("/api/live/act", { kind: "walk", node }).catch((e) => toast(e instanceof Error ? e.message : String(e)));
+  }, [me, live, toast]);
+
   const shell: Shell = {
     me, refreshMe, chog, setChog, toast,
     bounce: () => setBounceKey((b) => b + 1),
@@ -61,7 +87,11 @@ export default function App() {
 
   return (
     <>
-      <Diorama active={active} entered={entered} onOpen={open} bounceKey={bounceKey} />
+      <Diorama active={active} entered={entered} onOpen={open} bounceKey={bounceKey} mine={me?.tokenId ?? null}
+        onChog={(id, x, y) => setPicked({ id, x, y })} onWalk={walk} onLive={onLive} />
+      {entered && !active && <><PlayBar live={live} me={me} name={myName} onJoin={join} onLeave={() => setPicked(null)} /><FeudTicker live={live} /></>}
+      {picked && <ChogCard id={picked.id} x={picked.x} y={picked.y} live={live} me={me} onClose={() => setPicked(null)} onPlayAs={playAs} toast={toast} />}
+      <MainEvent live={live} offset={offset} toast={toast} />
       <header className="top">
         <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
