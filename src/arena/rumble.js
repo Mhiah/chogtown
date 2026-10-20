@@ -378,7 +378,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
   function draw(){
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const g = ctx.createRadialGradient(W / 2, H * .45, 40, W / 2, H * .5, Math.max(W, H) * .8);
-    g.addColorStop(0, '#3b1d78'); g.addColorStop(.55, '#22104a'); g.addColorStop(1, '#120826');
+    g.addColorStop(0, '#fff7fb'); g.addColorStop(.55, '#efe7ff'); g.addColorStop(1, '#d9cbff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     let ox = 0, oy = 0; if (shake > 0){ ox = rnd(-shake, shake); oy = rnd(-shake, shake); shake *= .86; if (shake < .3) shake = 0; }
     ctx.translate(ox, oy);
@@ -386,7 +386,7 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     for (let row = 3; row >= 0; row--){
       const rr = R + 64 + row * 38;
       ctx.beginPath(); ctx.ellipse(sx(0), sy(0) - 14 * S - row * 20 * S, rr * S, rr * S * TILT, 0, Math.PI * 1.02, Math.PI * 1.98);
-      ctx.strokeStyle = row % 2 ? 'rgba(106,69,201,.55)' : 'rgba(137,85,216,.45)'; ctx.lineWidth = 26 * S; ctx.stroke();
+      ctx.strokeStyle = row % 2 ? 'rgba(201,182,255,.9)' : 'rgba(220,207,255,.95)'; ctx.lineWidth = 26 * S; ctx.stroke();
       ctx.strokeStyle = 'rgba(232,191,116,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(sx(0), sy(0) - 14 * S - row * 20 * S + 13 * S, rr * S, rr * S * TILT, 0, Math.PI * 1.02, Math.PI * 1.98); ctx.stroke();
     }
     for (const c of crowd){
@@ -507,25 +507,25 @@ export function createRumble({ canvas, me, foe, onEnd, onEvent, hard = false, au
     const narrow = W < 600, pad = narrow ? 10 : 16, cw = narrow ? (W - pad * 3) / 2 : Math.min(300, W * .42), ch = narrow ? 54 : 64, top = narrow ? 64 : pad;
     P.forEach((p, i) => {
       const x = i ? W - pad - cw : pad, y = top, av = narrow ? 36 : 46, max = narrow ? 11 : 22;
-      ctx.fillStyle = 'rgba(20,9,31,.55)'; rr(x, y, cw, ch, 18); ctx.fill();
-      ctx.strokeStyle = i ? 'rgba(255,155,203,.6)' : 'rgba(232,191,116,.7)'; ctx.lineWidth = 1.5; rr(x, y, cw, ch, 18); ctx.stroke();
+      ctx.fillStyle = '#dccfff'; rr(x, y + 5, cw, ch, 20); ctx.fill();
+      ctx.fillStyle = '#ffffff'; rr(x, y, cw, ch, 20); ctx.fill();
       const ix = i ? x + cw - av - 9 : x + 9;
       ctx.save(); ctx.beginPath(); ctx.arc(ix + av / 2, y + ch / 2, av / 2, 0, TAU); ctx.clip(); if (p.img.complete && p.img.naturalWidth) ctx.drawImage(p.img, ix, y + (ch - av) / 2, av, av); ctx.restore();
       ctx.textAlign = i ? 'right' : 'left'; const tx = i ? ix - 9 : ix + av + 9;
-      ctx.fillStyle = '#fff'; ctx.font = `700 ${narrow ? 12 : 14}px Inter, system-ui, sans-serif`; ctx.fillText(p.name.length > max ? p.name.slice(0, max - 1) + '…' : p.name, tx, y + (narrow ? 22 : 26));
-      ctx.font = `800 ${narrow ? 17 : 20}px Inter, system-ui, sans-serif`; const pct = Math.round(p.dmg); ctx.fillStyle = pct < 50 ? '#fff' : pct < 100 ? '#ffd45c' : '#ff7b6e'; ctx.fillText(`${pct}%`, tx, y + (narrow ? 43 : 50));
-      for (let s = 0; s < STOCKS; s++){ const dx = i ? tx - (narrow ? 50 : 60) - s * 14 : tx + (narrow ? 50 : 60) + s * 14; ctx.fillStyle = s < p.stocks ? (i ? '#ff9bcb' : '#f4ce87') : 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(dx, y + (narrow ? 38 : 44), 5, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = '#2b1b5a'; ctx.font = `700 ${narrow ? 12 : 14}px Fredoka, Inter, system-ui, sans-serif`; ctx.fillText(p.name.length > max ? p.name.slice(0, max - 1) + '…' : p.name, tx, y + (narrow ? 22 : 26));
+      ctx.font = `800 ${narrow ? 17 : 20}px Inter, system-ui, sans-serif`; const pct = Math.round(p.dmg); ctx.fillStyle = pct < 50 ? '#7b4cf0' : pct < 100 ? '#e09a00' : '#e0456f'; ctx.fillText(`${pct}%`, tx, y + (narrow ? 43 : 50));
+      for (let s = 0; s < STOCKS; s++){ const dx = i ? tx - (narrow ? 50 : 60) - s * 14 : tx + (narrow ? 50 : 60) + s * 14; ctx.fillStyle = s < p.stocks ? (i ? '#ff7aa8' : '#7b4cf0') : '#e8e0fb'; ctx.beginPath(); ctx.arc(dx, y + (narrow ? 38 : 44), 5, 0, TAU); ctx.fill(); }
     });
-    ctx.textAlign = 'center'; ctx.fillStyle = '#fff2d8'; ctx.font = '800 22px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#3a1d9c'; ctx.font = '700 24px Fredoka, Inter, system-ui, sans-serif';
     const m = Math.floor(clock / 60), s = Math.floor(clock % 60); ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2, narrow ? top + ch + 28 : 44);
-    if (phase === 'intro'){ const n = Math.ceil(3 - phaseT); big(n > 0 ? String(n) : 'RUMBLE!', '#f4ce87'); }
-    if (phase === 'fight' && time < 3.8 + 0.6) big('RUMBLE!', '#f4ce87', Math.max(0, 1 - (time - 3) * 1.6));
+    if (phase === 'intro'){ const n = Math.ceil(3 - phaseT); big(n > 0 ? String(n) : 'RUMBLE!', '#ffbf3c'); }
+    if (phase === 'fight' && time < 3.8 + 0.6) big('RUMBLE!', '#ffbf3c', Math.max(0, 1 - (time - 3) * 1.6));
     if (phase === 'end' && result && phaseT < 1.5) big(result.won ? 'YOU WIN' : 'KNOCKED OUT', result.won ? '#f4ce87' : '#ff9bcb', 1 - phaseT / 1.5);
   }
   function big(text, color, alpha = 1){
     if (alpha <= 0) return;
-    ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.font = `900 ${Math.min(96, W * .13)}px Inter, system-ui, sans-serif`;
-    ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(20,9,31,.8)'; ctx.strokeText(text, W / 2, H * .42); ctx.fillStyle = color; ctx.fillText(text, W / 2, H * .42); ctx.globalAlpha = 1;
+    ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.font = `700 ${Math.min(104, W * .14)}px Fredoka, Inter, system-ui, sans-serif`;
+    ctx.lineWidth = 12; ctx.strokeStyle = '#3a1d9c'; ctx.strokeText(text, W / 2, H * .42); ctx.fillStyle = color; ctx.fillText(text, W / 2, H * .42); ctx.globalAlpha = 1;
   }
   function rr(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   function shade(hex, k){ const n = parseInt(hex.slice(1), 16), f = c => clamp(Math.round(c * (1 + k)), 0, 255); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }

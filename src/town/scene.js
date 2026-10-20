@@ -51,7 +51,7 @@ const camera = new THREE.PerspectiveCamera(38, 1, .1, 600);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
 const ENV = .32;
-scene.fog = new THREE.Fog(new THREE.Color('#4a2f8f'), 90, 260);
+scene.fog = new THREE.Fog(new THREE.Color('#d9cbff'), 110, 300);
 
 /* ---------- canvas textures ---------- */
 function ctex(w, h, draw, repeat){
@@ -161,7 +161,7 @@ function sway(mat, amt = .05, axisY = true){
 /* ---------- sky, clouds, distant isles ---------- */
 const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 48, 24), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
-  uniforms: { top:{ value:new THREE.Color('#1d1656') }, mid:{ value:new THREE.Color('#5a3aa8') }, hor:{ value:new THREE.Color('#d98ac8') }, sun:{ value:new THREE.Color('#ffc59a') }, sunDir:{ value:new THREE.Vector3(.55, .12, -.83).normalize() }, uTime },
+  uniforms: { top:{ value:new THREE.Color('#8f7ae8') }, mid:{ value:new THREE.Color('#c4b2fb') }, hor:{ value:new THREE.Color('#ffd2e2') }, sun:{ value:new THREE.Color('#fff2dc') }, sunDir:{ value:new THREE.Vector3(.55, .12, -.83).normalize() }, uTime },
   vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
   fragmentShader: `uniform vec3 top, mid, hor, sun, sunDir; uniform float uTime; varying vec3 vD;
     float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164))) * 43758.5453); }
@@ -169,33 +169,33 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 48, 24), new THREE.Shad
       float y = vD.y;
       vec3 c = mix(hor, mid, smoothstep(-.05, .32, y));
       c = mix(c, top, smoothstep(.3, .85, y));
-      c = mix(c, vec3(.05,.03,.16), smoothstep(-.02, -.55, y));
+      c = mix(c, vec3(.78,.7,.98), smoothstep(-.02, -.55, y));
       float s = max(dot(vD, sunDir), 0.);
       c += sun * (pow(s, 18.) * .9 + pow(s, 3.) * .22) * smoothstep(-.2, .1, y);
       vec3 q = floor(vD * 260.); float st = step(.9965, h(q));
       float tw = .6 + .4 * sin(uTime * 2. + h(q + 1.) * 40.);
-      c += vec3(1., .95, 1.) * st * tw * smoothstep(.25, .7, y) * .9;
+      c += vec3(1., .95, 1.) * st * tw * smoothstep(.25, .7, y) * 0.;
       gl_FragColor = vec4(c, 1.);
     }`
 }));
 scene.add(sky);
 const clouds = [];
 for (let i = 0; i < Math.round(34 * Q); i++){
-  const m = new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(pickOne(['#b48ad8', '#8f74d6', '#c08ac8', '#7a62c4'])), transparent: true, opacity: rr(.25, .5), depthWrite: false, fog: true });
+  const m = new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(pickOne(['#ffffff', '#fff1f7', '#f3ecff', '#ffeede'])), transparent: true, opacity: rr(.55, .85), depthWrite: false, fog: true });
   const s = new THREE.Sprite(m); const a = rnd() * Math.PI * 2, r = rr(24, 80);
   s.position.set(Math.cos(a) * r, rr(-30, -14), Math.sin(a) * r); const k = rr(22, 44); s.scale.set(k, k * .5, 1);
   s.userData = { a, r, v: rr(.004, .012) }; scene.add(s); clouds.push(s);
 }
 
 /* ---------- lighting ---------- */
-scene.add(new THREE.HemisphereLight(new THREE.Color('#c9b4ff'), new THREE.Color('#3b2270'), .5));
-const sunLight = new THREE.DirectionalLight(new THREE.Color('#ffcf9e'), 1.35);
+scene.add(new THREE.HemisphereLight(new THREE.Color('#f4eeff'), new THREE.Color('#8a74c9'), .55));
+const sunLight = new THREE.DirectionalLight(new THREE.Color('#ffe9cf'), 1.3);
 sunLight.position.set(16, 22, 12); sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
 Object.assign(sunLight.shadow.camera, { left:-19, right:19, top:19, bottom:-19, near:1, far:70 });
 sunLight.shadow.bias = -.0004; sunLight.shadow.normalBias = .02;
 scene.add(sunLight);
-const rim = new THREE.DirectionalLight(new THREE.Color('#9d84ff'), .55); rim.position.set(-14, 10, -18); scene.add(rim);
+const rim = new THREE.DirectionalLight(new THREE.Color('#ffc2e2'), .4); rim.position.set(-14, 10, -18); scene.add(rim);
 
 /* ---------- world groups ---------- */
 const world = new THREE.Group(); scene.add(world);
@@ -873,7 +873,7 @@ function setHover(k){ if (k === hovered) return; hovered = k; canvas.classList.t
 /* labels */
 const labelEls = {};
 places.forEach(p => {
-  const b = document.createElement('button'); b.className = 'label glass'; b.innerHTML = `<i></i><span class="t"><b>${p.name}</b><span>${p.blurb}</span></span>`;
+  const b = document.createElement('button'); b.className = 'label glass'; b.innerHTML = `<i><img src="/toy/i-${p.key}.webp" alt=""></i><span class="t"><b>${p.name}</b><span>${p.blurb}</span></span>`;
   b.addEventListener('click', () => hooks.onOpen(p.key)); b.addEventListener('mouseenter', () => setHover(p.key)); b.addEventListener('mouseleave', () => setHover(null)); b.addEventListener('focus', () => setHover(p.key)); b.addEventListener('blur', () => setHover(null));
   labelsEl.appendChild(b); labelEls[p.key] = b;
 });

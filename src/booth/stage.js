@@ -19,6 +19,7 @@ export function createStage({ canvas, chog, onScore, onEnd, onFire }){
   function resize(){ dpr = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight; canvas.width = W * dpr; canvas.height = H * dpr; R = Math.min(W, H) * .17; CX = W / 2; CY = H * .54; }
   resize(); addEventListener('resize', resize);
   const img = new Image(); img.src = chog.image;
+  const jeetImg = new Image(); jeetImg.src = '/toy/jeet.webp';
   const kit = chog.kit;
 
   let jeets = [], shots = [], beams = [], waves = [], fx = [], texts = [], puddles = [];
@@ -131,7 +132,7 @@ export function createStage({ canvas, chog, onScore, onEnd, onFire }){
 
   function draw(){
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const g = ctx.createRadialGradient(CX, CY, 20, CX, CY, Math.max(W, H) * .75); g.addColorStop(0, '#3b1d78'); g.addColorStop(1, '#120826');
+    const g = ctx.createRadialGradient(CX, CY, 20, CX, CY, Math.max(W, H) * .75); g.addColorStop(0, '#fff7fb'); g.addColorStop(.6, '#efe7ff'); g.addColorStop(1, '#d9cbff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     if (shake > 0){ ctx.translate(rnd(-shake, shake), rnd(-shake, shake)); shake *= .86; if (shake < .3) shake = 0; }
     for (const p of puddles){ ctx.globalAlpha = .45 * (1 - p.t / p.life); ctx.fillStyle = '#bfefff'; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * .7, 0, 0, TAU); ctx.fill(); }
@@ -147,9 +148,10 @@ export function createStage({ canvas, chog, onScore, onEnd, onFire }){
     // jeets
     for (const j of jeets){
       ctx.save(); ctx.translate(j.x, j.y);
-      ctx.fillStyle = j.flash > 0 ? '#fff' : j.hp > 1 ? '#c2335a' : '#e2626a'; ctx.strokeStyle = '#2a1450'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(0, 0, j.r, 0, TAU); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.font = `800 ${j.r * .5}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(j.label, 0, 1);
+      const js = j.r * 2.6 * (j.hp > 1 ? 1.25 : 1);
+      if (jeetImg.complete && jeetImg.naturalWidth){ ctx.rotate(Math.sin(t * 6 + j.wob) * .12); if (j.flash > 0) ctx.filter = 'brightness(2.2)'; ctx.drawImage(jeetImg, -js / 2, -js / 2, js, js); ctx.filter = 'none'; ctx.rotate(-Math.sin(t * 6 + j.wob) * .12); }
+      else { ctx.fillStyle = '#e2626a'; ctx.beginPath(); ctx.arc(0, 0, j.r, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#d94f80'; ctx.lineWidth = 3; ctx.font = `700 ${Math.max(11, j.r * .42)}px Fredoka, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.strokeText(j.label, 0, js * .52); ctx.fillText(j.label, 0, js * .52);
       ctx.restore();
     }
     // beams + shots
@@ -172,15 +174,15 @@ export function createStage({ canvas, chog, onScore, onEnd, onFire }){
     if (flash > 0){ ctx.fillStyle = `rgba(255,255,255,${flash * 2})`; ctx.fillRect(0, 0, W, H); }
     // HUD
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.textAlign = 'center'; ctx.fillStyle = '#fff2d8'; ctx.font = '800 34px Inter, system-ui, sans-serif'; ctx.fillText(`${score}`, W / 2, 50);
-    ctx.font = '600 12px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(251,247,255,.6)'; ctx.fillText(combo > 1 ? `combo ×${combo}` : 'jeets blasted', W / 2, 68);
-    ctx.textAlign = 'right'; ctx.font = '20px sans-serif'; ctx.fillStyle = '#ff9bcb'; ctx.fillText('♥'.repeat(Math.max(0, hearts)), W - 18, 40);
-    ctx.textAlign = 'left'; ctx.font = '800 22px Inter, system-ui, sans-serif'; ctx.fillStyle = clock < 10 && phase === 'run' ? '#ff9bcb' : '#fff2d8';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#3a1d9c'; ctx.font = '700 38px Fredoka, Inter, system-ui, sans-serif'; ctx.fillText(`${score}`, W / 2, 50);
+    ctx.font = '800 12px Nunito, Inter, system-ui, sans-serif'; ctx.fillStyle = '#8f82b8'; ctx.fillText(combo > 1 ? `combo ×${combo}` : 'jeets blasted', W / 2, 68);
+    ctx.textAlign = 'right'; ctx.font = '22px sans-serif'; ctx.fillStyle = '#ff7aa8'; ctx.fillText('♥'.repeat(Math.max(0, hearts)), W - 18, 40);
+    ctx.textAlign = 'left'; ctx.font = '700 24px Fredoka, Inter, system-ui, sans-serif'; ctx.fillStyle = clock < 10 && phase === 'run' ? '#e0456f' : '#3a1d9c';
     if (phase === 'run') ctx.fillText(`0:${String(Math.ceil(clock)).padStart(2, '0')}`, 18, H - 24);
     ctx.textAlign = 'center';
-    if (phase === 'ready'){ ctx.font = '600 14px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(251,247,255,.7)'; ctx.fillText('Practice: warm up your face, then start a 60-second run', W / 2, H * .14); }
-    if (phase === 'count'){ ctx.font = '900 96px Inter, system-ui, sans-serif'; ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(20,9,31,.8)'; const n = String(Math.ceil(3 - phaseT)); ctx.strokeText(n, W / 2, H * .3); ctx.fillStyle = '#f4ce87'; ctx.fillText(n, W / 2, H * .3); }
-    if (phase === 'done'){ ctx.font = '900 54px Inter, system-ui, sans-serif'; ctx.fillStyle = over ? '#ff9bcb' : '#f4ce87'; ctx.fillText(over ? 'JEETED' : 'TIME!', W / 2, H * .2); }
+    if (phase === 'ready'){ ctx.font = '800 14px Nunito, Inter, system-ui, sans-serif'; ctx.fillStyle = '#8f82b8'; ctx.fillText('Practice: warm up your face, then start a 60-second run', W / 2, H * .14); }
+    if (phase === 'count'){ ctx.font = '700 104px Fredoka, Inter, system-ui, sans-serif'; ctx.lineWidth = 12; ctx.strokeStyle = '#3a1d9c'; const n = String(Math.ceil(3 - phaseT)); ctx.strokeText(n, W / 2, H * .3); ctx.fillStyle = '#ffbf3c'; ctx.fillText(n, W / 2, H * .3); }
+    if (phase === 'done'){ ctx.font = '700 60px Fredoka, Inter, system-ui, sans-serif'; ctx.fillStyle = over ? '#ff7aa8' : '#7b4cf0'; ctx.fillText(over ? 'JEETED' : 'TIME!', W / 2, H * .2); }
   }
 
   let last = performance.now(), raf = 0, dead = false;

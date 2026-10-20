@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createTown } from "@/town/scene";
-import { Icon, ctrlIcons } from "./icons";
+import { ctrlIcons } from "./icons";
 import { PLACES, type PlaceKey, type Me, type ChogView, type Shell } from "./types";
 import { api, short } from "./client";
 import HomePanel from "./panels/HomePanel";
@@ -12,6 +12,10 @@ import HallPanel from "./panels/HallPanel";
 import ShopPanel from "./panels/ShopPanel";
 
 type Town = ReturnType<typeof createTown>;
+
+/** Toybox art (public/toy): an icon per place for the dock, and the toy Chog doing that place's thing for the sheet header. */
+export const PLACE_ICON: Record<PlaceKey, string> = { home: "/toy/i-home.webp", arena: "/toy/i-arena.webp", feed: "/toy/i-feed.webp", hall: "/toy/i-hall.webp", shop: "/toy/i-shop.webp" };
+const PLACE_TOY: Record<PlaceKey, string> = { home: "/toy/hug.webp", arena: "/toy/fight.webp", feed: "/toy/read.webp", hall: "/toy/trophy.webp", shop: "/toy/selfie.webp" };
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,7 +78,7 @@ export default function App() {
     <>
       <canvas id="scene" ref={canvasRef} aria-label="Chogtown, a floating 3D city. Use the buttons to visit each place." />
       <header className="top">
-        <div className="brand"><Brand /> Chogtown</div>
+        <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> Chogtown</div>
         <div className="meta">
           <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>
@@ -95,13 +99,14 @@ export default function App() {
       <nav className="dock glass" aria-label="Places in Chogtown">
         {PLACES.map((p) => (
           <button key={p.key} aria-pressed={active === p.key} aria-label={p.name} onClick={() => (active === p.key ? close() : open(p.key))}>
-            <Icon k={p.key} /><span>{p.dock}</span>
+            <img src={PLACE_ICON[p.key]} alt="" /><span>{p.dock}</span>
           </button>
         ))}
       </nav>
 
       <aside className={`sheet glass${active ? " open" : ""}`} aria-live="polite" aria-labelledby="sheet-title">
         <div className="sheet-head">
+          {active && <img className="hero-toy" src={PLACE_TOY[active]} alt="" key={active} />}
           <div><div className="eyebrow">{place?.eyebrow}</div><h2 id="sheet-title">{place?.name}</h2></div>
           <button className="close" aria-label="Back to the town" onClick={close}>{ctrlIcons.close}</button>
         </div>
@@ -115,11 +120,16 @@ export default function App() {
       </aside>
 
       <section className={`intro${entered ? " gone" : ""}`}>
+        <img className="intro-toy" src="/toy/wave.webp" alt="" />
         <div className="intro-inner">
-          <div className="eyebrow">Chogathon 2026 · Where every Chog has a life</div>
-          <h1>Welcome to<br /><span>Chogtown</span></h1>
-          <p>Every Chog lives here. By night they meet, gossip, fall out and make up. Each morning yours tells you what happened, and who it is becoming.</p>
-          <button className="btn" onClick={() => { setEntered(true); town.current?.enter(); }}>Enter Chogtown</button>
+          <div className="eyebrow">Chogathon 2026 · A floating toy town</div>
+          <h1>Every Chog<br />has a <span>life.</span></h1>
+          <p>All 1,969 Chogs live here. By night they gossip and feud. By day you check in, fight your rivals in the Rumble and blast jeets with your face.</p>
+          <div className="btns">
+            <button className="btn" onClick={() => { setEntered(true); town.current?.enter(); }}>Enter town →</button>
+            <button className="btn ghost" onClick={() => open("home")}>Visit any Chog</button>
+          </div>
+          <div className="stats"><div><b>1,969</b><span>Chogs</span></div><div><b>5</b><span>places</span></div><div><b>every night</b><span>new gossip</span></div></div>
         </div>
       </section>
 
@@ -128,15 +138,3 @@ export default function App() {
   );
 }
 
-function Brand() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M16 3l3 5 5-3-1 6 6 1-4 4 4 4-6 1 1 5-5-2-3 5-3-5-5 2 1-5-6-1 4-4-4-4 6-1-1-6 5 3z" fill="#5b3ab8" />
-      <ellipse cx="16" cy="17.5" rx="7" ry="6" fill="#fff2d8" />
-      <path d="M12 12l2 3 2-3 2 3 2-3v-2h-8z" fill="#5b3ab8" />
-      <ellipse cx="13.4" cy="17.3" rx="1.3" ry="1.8" fill="#14091f" /><ellipse cx="18.6" cy="17.3" rx="1.3" ry="1.8" fill="#14091f" />
-      <circle cx="11.2" cy="19.6" r="1.1" fill="#e0507d" opacity=".8" /><circle cx="20.8" cy="19.6" r="1.1" fill="#e0507d" opacity=".8" />
-      <path d="M15 21.2q1 .8 2 0" stroke="#2a1450" strokeWidth=".8" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}

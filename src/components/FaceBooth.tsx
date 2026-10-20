@@ -16,33 +16,34 @@ const loadImg = (src: string) => new Promise<HTMLImageElement | null>((res) => {
 async function drawCard(cv: HTMLCanvasElement, chog: Fighter, r: RunResult, face: string | null, battle: string | null) {
   const W = 1080, H = 1350; cv.width = W; cv.height = H;
   const g = cv.getContext("2d")!;
-  const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#2a1458"); bg.addColorStop(1, "#4a2290"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#efe7ff"); bg.addColorStop(1, "#ffe3ec"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
   const glow = g.createRadialGradient(W / 2, 900, 40, W / 2, 900, 600); glow.addColorStop(0, chog.kit.aura.color + "aa"); glow.addColorStop(1, chog.kit.aura.color + "00"); g.fillStyle = glow; g.fillRect(0, 0, W, H);
   // the player's face, mirrored like the camera view
   const fx = 60, fy = 60, fw = 960, fh = 600;
   g.save(); g.beginPath(); g.roundRect(fx, fy, fw, fh, 48); g.clip();
-  g.fillStyle = "#1b0f3d"; g.fillRect(fx, fy, fw, fh);
+  g.fillStyle = "#dccfff"; g.fillRect(fx, fy, fw, fh);
   // no camera: show the battle instead (not mirrored)
   const fi = await loadImg(face || battle || "");
   if (fi) { const k = Math.max(fw / fi.width, fh / fi.height), w = fi.width * k, h = fi.height * k; if (face) { g.translate(fx + fw, fy); g.scale(-1, 1); } else g.translate(fx, fy); g.drawImage(fi, (fw - w) / 2, (fh - h) / 2, w, h); }
   g.restore();
-  g.lineWidth = 6; g.strokeStyle = "#ff9bcb"; g.beginPath(); g.roundRect(fx, fy, fw, fh, 48); g.stroke();
-  g.fillStyle = "rgba(20,9,31,.7)"; g.beginPath(); g.roundRect(fx + 28, fy + 28, 290, 64, 32); g.fill();
-  g.fillStyle = "#fff5e9"; g.font = "700 30px -apple-system, 'Helvetica Neue', sans-serif"; g.textAlign = "left"; g.fillText(face ? "my face, mid-attack" : "the battle", fx + 54, fy + 71);
+  g.lineWidth = 10; g.strokeStyle = "#ffffff"; g.beginPath(); g.roundRect(fx, fy, fw, fh, 48); g.stroke();
+  g.fillStyle = "#ffffff"; g.beginPath(); g.roundRect(fx + 28, fy + 28, 300, 64, 32); g.fill();
+  g.fillStyle = "#7b4cf0"; g.font = "600 30px Fredoka, sans-serif"; g.textAlign = "left"; g.fillText(face ? "my face, mid-attack" : "the battle", fx + 54, fy + 71);
   // the Chog
   const art = await loadImg(chog.image);
   const cx = 250, cy = 930, cr = 175;
   g.save(); g.shadowColor = chog.kit.aura.color; g.shadowBlur = 60; g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2); g.fillStyle = "#d9c6f5"; g.fill(); g.restore();
   g.save(); g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2); g.clip(); if (art) g.drawImage(art, cx - cr, cy - cr, cr * 2, cr * 2); g.restore();
-  g.lineWidth = 8; g.strokeStyle = "#f4ce87"; g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 12; g.strokeStyle = "#ffffff"; g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2); g.stroke();
   // score + powers
-  g.textAlign = "left"; g.fillStyle = "#fff5e9"; g.font = "800 150px -apple-system, 'Helvetica Neue', sans-serif"; g.fillText(r.score.toLocaleString(), 470, 920);
-  g.fillStyle = "rgba(240,232,255,.8)"; g.font = "500 34px -apple-system, 'Helvetica Neue', sans-serif";
+  g.textAlign = "left"; g.fillStyle = "#3a1d9c"; g.font = "700 150px Fredoka, sans-serif"; g.fillText(r.score.toLocaleString(), 470, 920);
+  g.fillStyle = "#5a4a8a"; g.font = "700 34px Nunito, sans-serif";
   g.fillText(`${r.kills} jeets blasted · best combo ×${r.bestCombo}`, 474, 980);
-  g.fillStyle = "#f4ce87"; g.font = "600 30px -apple-system, 'Helvetica Neue', sans-serif";
+  g.fillStyle = "#d94f80"; g.font = "800 30px Nunito, sans-serif";
   g.fillText(`Brows: ${chog.kit.eyes.name}`, 474, 1040); g.fillText(`Mouth: ${chog.kit.mouth.name}`, 474, 1084);
-  g.fillStyle = "#fff5e9"; g.font = "700 46px -apple-system, 'Helvetica Neue', sans-serif"; g.textAlign = "center"; g.fillText(chog.label, cx, cy + cr + 70);
-  g.fillStyle = "rgba(240,232,255,.6)"; g.font = "600 28px -apple-system, 'Helvetica Neue', sans-serif"; g.fillText("CHOGTOWN · FACE BOOTH", W / 2, H - 50);
+  g.fillStyle = "#3a1d9c"; g.font = "700 46px Fredoka, sans-serif"; g.textAlign = "center"; g.fillText(chog.label, cx, cy + cr + 70);
+  const toy = await loadImg("/toy/selfie.webp"); if (toy) g.drawImage(toy, W - 300, H - 380, 280, 280);
+  g.fillStyle = "#7b4cf0"; g.font = "700 30px Fredoka, sans-serif"; g.fillText("CHOGTOWN · FACE BOOTH", W / 2 - 120, H - 50);
 }
 
 export default function FaceBooth({ tokenId, onClose }: { tokenId?: number | null; onClose?(): void }) {
