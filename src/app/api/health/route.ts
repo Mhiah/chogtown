@@ -23,7 +23,7 @@ export async function GET() {
   const alts = altProviders();
   const env = {
     ai: hasClaude() ? `Claude (${MODEL})` : alts.length ? alts.map((a) => `${a.name} (${a.model})`).join(", then ") : "none, scripted lines",
-    supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    database: process.env.DATABASE_URL ? "postgres" : process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "memory",
     sessionSecret: Boolean(process.env.SESSION_SECRET),
     cronSecret: Boolean(process.env.CRON_SECRET),
   };
