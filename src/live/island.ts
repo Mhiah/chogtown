@@ -16,11 +16,12 @@ import { today } from "@/lib/config";
 import type { TownEvent } from "@/lib/night";
 import { adjust } from "@/lib/casino";
 import { bump, seen } from "@/lib/stats";
+import { POWERS, powersOf, isNight, type PowerKey } from "@/lib/powers";
 import { client, ownerOf } from "@/lib/chain";
 import { CHOG_TOKEN } from "@/lib/config";
 import { decodeEventLog, formatUnits, getAddress, parseAbi } from "viem";
 
-const V = 6; // bump to replace a running island in dev
+const V = 7; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
 const AUTO_MAIN_EVERY_MS = 6 * 60_000;
@@ -39,6 +40,8 @@ export const CARDS = {
   challenge: { name: "Challenge", emote: "🥊", heat: 8, brief: "challenges the other Chog to settle it at the Main Event in the Amphitheatre" },
 } as const;
 export type CardKey = keyof typeof CARDS;
+export type AnyCard = CardKey | PowerKey;
+const metaOf = (k: AnyCard) => (k in POWERS ? POWERS[k as PowerKey] : CARDS[k as CardKey]);
 
 interface Feud { a: number; b: number; heat: number; log: string[]; t: number }
 interface Tips { id: number; total: number; count: number; last: { from: string; amount: number; t: number } | null }
@@ -47,6 +50,7 @@ interface Main {
   bellAt: number; startAt: number; endAt: number;
   winner: "a" | "b"; result: Record<string, number | boolean>;
   picks: Record<string, "a" | "b">; done: boolean;
+  house?: { a: number; b: number }; // chips the Candle Chogs pumped or dumped into the pool
   bets: Record<string, { side: "a" | "b"; amount: number; name: string }>;
 }
 type Send = (event: string, data: unknown) => void;
@@ -57,7 +61,9 @@ const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 function boot() {
   const st = {
     v: V, sim: null as any, chogs: new Map<number, Chog>(), feuds: new Map<string, Feud>(),
-    main: null as Main | null, lastMain: null as Main | null, recent: [] as string[], nextMain: Date.now() + FIRST_MAIN_AFTER_MS,
+    main: null as Main | null, lastMain: null as Main | null, recent: [] as string[],
+    crown: null as { id: number; name: string; since: number } | null, // Chog of the Day
+    nextMain: Date.now() + FIRST_MAIN_AFTER_MS, nextNpcPower: Date.now() + 40_000,
     clients: new Set<Send>(), players: new Map<number, { vid: string; until: number; busy: boolean; cool: number }>(),
     tips: new Map<number, Tips>(), owners: new Map<number, { a: string | null; at: number }>(),
     seen: 0, changed: -1, lastSent: 0, timer: null as ReturnType<typeof setInterval> | null, ready: null as Promise<void> | null,
@@ -86,6 +92,8 @@ async function start(I: Island) {
   I.sim = createSim(cast, { seed: Date.now() % 1e9 });
   for (const f of await store().list<Feud>("feuds", 300)) I.feuds.set(key(f.a, f.b), f);
   for (const t of await store().list<Tips>("tips", 2000)) I.tips.set(t.id, t);
+  const crown = await store().get<{ id: number; name: string; since: number; day: string }>("town", "crown");
+  if (crown && crown.day === today()) I.crown = crown;
   // seed the drama: rivals from past nights start with some heat
   for (const c of chogs) for (const [o, r] of Object.entries(c.rel)) {
     if (r.kind !== "rival" || !awake.has(Number(o))) continue;
@@ -114,6 +122,7 @@ function tick(I: Island) {
   if (m && !m.done && now >= m.endAt) finishMain(I, m).catch((e) => console.error("main event", e));
   if (m?.done && now >= m.endAt + 25_000) { I.lastMain = m; I.main = null; sim.setRally(false); }
   if (!I.main && now >= I.nextMain) autoMain(I).catch((e) => console.error("auto main", e));
+  if (now >= I.nextNpcPower) npcPower(I).catch((e) => console.error("npc power", e));
   // tell viewers: right away when something happens, else twice a second
   if (sim.changed !== I.changed || now - I.lastSent > 1000) { I.changed = sim.changed; I.lastSent = now; broadcast(I); }
 }
@@ -121,7 +130,7 @@ function tick(I: Island) {
 export function view(I: Island) {
   const top = [...I.feuds.values()].filter((f) => f.heat >= 20).sort((a, b) => b.heat - a.heat).slice(0, 5)
     .map((f) => ({ a: f.a, b: f.b, an: I.chogs.get(f.a)?.name ?? `#${f.a}`, bn: I.chogs.get(f.b)?.name ?? `#${f.b}`, heat: Math.round(f.heat), stage: stageOf(f.heat) }));
-  return { now: Date.now(), ...I.sim.snapshot(), feuds: top, main: mainView(I.main), lastMain: mainView(I.lastMain), players: [...I.players.keys()] };
+  return { now: Date.now(), ...I.sim.snapshot(), feuds: top, main: mainView(I.main), lastMain: mainView(I.lastMain), players: [...I.players.keys()], crown: I.crown, night: isNight() };
 }
 
 function mainView(m: Main | null) {
@@ -208,19 +217,32 @@ type Line = { by: "a" | "b"; text: string };
 
 /** Play an intention card on another Chog: your Chog walks over, the AI writes the scene, the feud moves. */
 /** holder: the player verified on Monad that they own this Chog; they can call rivals out from Side-eye. */
-export async function play(vid: string, id: number, target: number, card: CardKey, holder = false) {
+export async function play(vid: string, id: number, target: number, card: AnyCard, holder = false) {
   const I = await island();
-  if (!CARDS[card]) return { ok: false, error: "Unknown card." };
+  if (!(card in CARDS) && !(card in POWERS)) return { ok: false, error: "Unknown card." };
+  const meta = metaOf(card);
   if (id === target) return { ok: false, error: "Pick another Chog." };
   const p = lease(I, vid, id) ?? ((await join(vid, id)).ok ? lease(I, vid, id) : null);
   if (!p) return { ok: false, error: "Join the island with your Chog first." };
   if (p.busy) return { ok: false, error: "Your Chog is already in a scene." };
   if (p.cool > Date.now()) return { ok: false, error: `Catch your breath: ${Math.ceil((p.cool - Date.now()) / 1000)}s.` };
+  // trait powers: only Chogs minted with the right traits have them
+  if (card in POWERS) {
+    const me = await chogFor(I, id);
+    if (!powersOf(me.traits).includes(card as PowerKey)) return { ok: false, error: `${me.name} needs ${POWERS[card as PowerKey].from} for that.` };
+    if (card === "haunt" && !isNight()) return { ok: false, error: "Haunting only works at night (19:00–06:00 UTC)." };
+    if (card === "pump" || card === "dump") return candle(I, me, target, card);
+    if (card === "crown" && I.crown && I.crown.id !== target && I.crown.id !== id) return { ok: false, error: `${I.crown.name} wears the crown. Play it on ${I.crown.name} to take it.` };
+    if (card === "crown" && I.crown?.id === id) return { ok: false, error: "You're already Chog of the Day." };
+  }
   const tgt = I.sim.byId[target];
   if (!tgt?.out || tgt.leaving) return { ok: false, error: "That Chog just went inside." };
-  if (tgt.player) return { ok: false, error: "That Chog is being played by someone else. Try another." };
   if (I.sim.rally) return { ok: false, error: "Shh, the Main Event is on." };
-  const sc = I.sim.scene(id, target, null, () => { p.busy = false; });
+  const sc = I.sim.scene(id, target, null, () => {
+    p.busy = false;
+    // haunted Chogs run home
+    if (card === "haunt" && I.sim.byId[target]) { I.sim.byId[target].leaving = true; I.changed = -1; }
+  });
   if (!sc) return { ok: false, error: "Couldn't get over there. Try again." };
   p.busy = true; p.cool = Date.now() + 8000;
   bump(`card_${card}`).catch(() => {}); bump("scenes").catch(() => {});
@@ -236,11 +258,14 @@ export async function play(vid: string, id: number, target: number, card: CardKe
   }
   const accepted = card === "challenge" && stage >= (holder ? 1 : 2) && !I.main;
   const lines = await sceneLines(a, b, card, stage, f?.log ?? [], about, accepted);
-  sc.lines = lines.map((l, i) => ({ ...l, emote: i === 0 ? CARDS[card].emote : "" }));
+  sc.lines = lines.map((l, i) => ({ ...l, emote: i === 0 ? meta.emote : "" }));
 
   // what it does to the story
-  const summary = `${a.name} ${CARDS[card].name.toLowerCase()}${card === "rumour" && about ? ` about ${about.name}` : ""}: “${lines[0]?.text ?? ""}”`;
-  const res = heat(I, id, target, card === "rumour" ? CARDS.rumour.heat : CARDS[card].heat, summary);
+  const summary = `${a.name} ${meta.name.toLowerCase()}${card === "rumour" && about ? ` about ${about.name}` : ""}: “${lines[0]?.text ?? ""}”`;
+  const backfired = card === "prank" && Math.random() < .5;
+  const d = card in CARDS ? CARDS[card as CardKey].heat : { zap: 20, crown: 10, frogdad: -100, haunt: 12, prank: backfired ? 15 : -10, pump: 0, dump: 0 }[card as PowerKey];
+  const res = heat(I, id, target, d, summary);
+  if (card in POWERS) powerEffects(I, a, b, card as PowerKey);
   if (card === "rumour" && about) heat(I, target, about.id, 15, `${a.name} told ${b.name} something about ${about.name}.`);
   if (card === "flirt" || card === "makeup") nudgeRel(a, b, +1);
   if (card === "roast") nudgeRel(a, b, -1);
@@ -248,6 +273,56 @@ export async function play(vid: string, id: number, target: number, card: CardKe
   if (accepted) booked = await bookMain(I, id, target, `${a.name} called ${b.name} out, and ${b.name} said yes.`, 22_000);
   if (card === "roast" && (res?.stage ?? 0) >= 3) gazette(`${label(a)} roasted ${label(b)} in front of everyone: “${lines[0]?.text}”`, [id, target]);
   return { ok: true, lines, feud: res && { heat: Math.round(res.heat), stage: res.stage, name: STAGES[res.stage].name }, booked: !!booked, refused: card === "challenge" && !accepted };
+}
+
+/** What a trait power does to the town beyond the feud meter. */
+function powerEffects(I: Island, a: Chog, b: Chog, card: PowerKey) {
+  if (card === "zap") gazette(`${label(a)} zapped ${label(b)} with laser eyes ${isNight() ? "in the dark" : "in broad daylight"}. ${b.name} is still smoking.`, [a.id, b.id]);
+  if (card === "frogdad") gazette(`Frog Dad arrived to end the feud between ${label(a)} and ${label(b)}. Nobody argues with Frog Dad.`, [a.id, b.id], "friends");
+  if (card === "haunt") gazette(`${label(a)} haunted ${label(b)} after dark. ${b.name} ran home and won't come out.`, [a.id, b.id], "myst");
+  if (card === "crown") {
+    const from = I.crown?.id === b.id ? b.name : null;
+    I.crown = { id: a.id, name: a.name, since: Date.now() };
+    store().set("town", "crown", { ...I.crown, day: today() }).catch(() => {});
+    I.changed = -1;
+    gazette(from ? `${label(a)} snatched the crown off ${label(b)}. Chogtown has a new Chog of the Day.` : `${label(a)} claimed the crown. Chog of the Day, until somebody takes it.`, [a.id, b.id]);
+  }
+}
+
+/**
+ * Chogs use their trait powers on their own too, every minute or so, so the powers show up on screen
+ * even when nobody is playing: laser eyes zap, clowns prank, crowns go after the crown, Skulls haunt at night,
+ * frogs call Frog Dad on a hot feud.
+ */
+const NPC_POWER_EVERY_MS = 70_000;
+async function npcPower(I: Island) {
+  I.nextNpcPower = Date.now() + NPC_POWER_EVERY_MS * (.7 + Math.random() * .6);
+  if (I.sim.rally || (I.main && !I.main.done)) return;
+  type C = { id: number; out: boolean; leaving: boolean; walking: boolean; talking: boolean; player: boolean; hold: boolean; fade: number };
+  const free = (I.sim.chogs as C[]).filter((c) => c.out && !c.leaving && !c.walking && !c.talking && !c.player && !c.hold && c.fade >= 1);
+  if (free.length < 3) return;
+  for (const c of [...free].sort(() => Math.random() - .5)) {
+    const me = I.chogs.get(c.id); if (!me) continue;
+    const hot = [...I.feuds.values()].find((f) => f.heat >= 30 && (f.a === c.id || f.b === c.id) && free.some((x) => x.id === (f.a === c.id ? f.b : f.a)));
+    const crownFree = !I.crown || free.some((x) => x.id === I.crown!.id);
+    const usable = powersOf(me.traits).filter((k) => k === "zap" || k === "prank" || (k === "haunt" && isNight()) || (k === "frogdad" && !!hot) || (k === "crown" && crownFree && I.crown?.id !== c.id));
+    if (!usable.length) continue;
+    const card = pick(usable);
+    const targetId = card === "frogdad" ? (hot!.a === c.id ? hot!.b : hot!.a) : card === "crown" && I.crown ? I.crown.id : pick(free.filter((x) => x.id !== c.id)).id;
+    const sc = I.sim.scene(c.id, targetId, null, () => {
+      if (card === "haunt" && I.sim.byId[targetId]) { I.sim.byId[targetId].leaving = true; I.changed = -1; }
+    });
+    if (!sc) return;
+    const b = await chogFor(I, targetId);
+    const f = feudOf(I, c.id, targetId);
+    const lines = await sceneLines(me, b, card, stageOf(f?.heat ?? 0), f?.log ?? [], null, false);
+    sc.lines = lines.map((l, i) => ({ ...l, emote: i === 0 ? POWERS[card].emote : "" }));
+    const d = { zap: 20, crown: 10, frogdad: -100, haunt: 12, prank: Math.random() < .5 ? 15 : -10, pump: 0, dump: 0 }[card];
+    heat(I, c.id, targetId, d, `${me.name} used ${POWERS[card].name}: “${lines[0]?.text ?? ""}”`);
+    powerEffects(I, me, b, card);
+    bump("npc_powers").catch(() => {});
+    return;
+  }
 }
 
 function nudgeRel(a: Chog, b: Chog, d: number) {
@@ -260,14 +335,14 @@ function nudgeRel(a: Chog, b: Chog, d: number) {
   Promise.all([saveChog(a), saveChog(b)]).catch(() => {});
 }
 
-async function sceneLines(a: Chog, b: Chog, card: CardKey, stage: number, log: string[], about: Chog | null, accepted: boolean): Promise<Line[]> {
+async function sceneLines(a: Chog, b: Chog, card: AnyCard, stage: number, log: string[], about: Chog | null, accepted: boolean): Promise<Line[]> {
   const A = ARCHETYPES[a.archetype], B = ARCHETYPES[b.archetype];
   const situation = card === "challenge"
     ? accepted ? `${b.name} accepts. The Main Event is booked; they will fight in the Amphitheatre in front of the whole island.` : `${b.name} refuses: the beef isn't big enough yet (feud stage ${STAGES[stage].name}). ${b.name} brushes it off.`
     : card === "rumour" && about ? `The rumour is about ${about.name} (a ${ARCHETYPES[about.archetype].name}). ${b.name} is shocked and angry at ${about.name}.` : "";
   const out = await askJSON<{ lines: Line[] }>({
-    system: "You write live scenes for Chog Island, a cosy, funny reality show where Chog NFTs live on a floating toy island. Two Chogs talk in speech bubbles. Each line is one short, punchy sentence (max 80 characters), fully in character, PG, specific and funny. No hashtags, no emojis, no narration: dialogue only.",
-    messages: [{ role: "user", content: `Scene card: ${a.name} ${CARDS[card].brief}.\n${a.name} is a ${A.name}: ${A.voice}\n${b.name} is a ${B.name}: ${B.voice}\nTheir feud right now: ${STAGES[stage].name}.${log.length ? ` What happened before: ${log.slice(-3).join(" / ")}` : ""}\n${situation}\nWrite exactly 4 lines, alternating: ${a.name} (a), ${b.name} (b), ${a.name} (a), ${b.name} (b).` }],
+    system: "You write live scenes for Chogtown, a cosy, funny reality show where Chog NFTs live in a floating toy town. Two Chogs talk in speech bubbles. Each line is one short, punchy sentence (max 80 characters), fully in character, PG, specific and funny. No hashtags, no emojis, no narration: dialogue only.",
+    messages: [{ role: "user", content: `Scene card: ${a.name} ${metaOf(card).brief}.\n${a.name} is a ${A.name}: ${A.voice}\n${b.name} is a ${B.name}: ${B.voice}\nTheir feud right now: ${STAGES[stage].name}.${log.length ? ` What happened before: ${log.slice(-3).join(" / ")}` : ""}\n${situation}\nWrite exactly 4 lines, alternating: ${a.name} (a), ${b.name} (b), ${a.name} (a), ${b.name} (b).` }],
     schema: obj({ lines: { type: "array", items: obj({ by: { type: "string", enum: ["a", "b"] }, text: str() }) } }),
     maxTokens: 600,
   }).catch(() => null);
@@ -276,8 +351,30 @@ async function sceneLines(a: Chog, b: Chog, card: CardKey, stage: number, log: s
   return fallbackLines(a, b, card, about, accepted);
 }
 
-function fallbackLines(a: Chog, b: Chog, card: CardKey, about: Chog | null, accepted: boolean): Line[] {
-  const L: Record<CardKey, Line[]> = {
+/** Green and Red Candle Chogs move the Main Event pool: no walk, just a shout from wherever they stand. */
+async function candle(I: Island, me: Chog, target: number, card: "pump" | "dump") {
+  const m = I.main;
+  if (!m || m.done || Date.now() > m.startAt + 10_000) return { ok: false, error: `${POWERS[card].name} only works on a Main Event fighter while bets are open.` };
+  if (target !== m.a.id && target !== m.b.id) return { ok: false, error: `Play ${POWERS[card].name} on one of the two Main Event fighters.` };
+  const side: "a" | "b" = target === m.a.id ? "a" : "b", other = side === "a" ? "b" : "a";
+  m.house ??= { a: 0, b: 0 };
+  m.house[card === "pump" ? side : other] += 300;
+  const f = side === "a" ? m.a : m.b;
+  const c = I.sim.byId[me.id];
+  if (c) { c.bubble = { text: card === "pump" ? `${f.name} TO THE MOON 🚀` : `${f.name}? Total rug. Dumping.`, emote: POWERS[card].emote, t0: I.sim.t, until: I.sim.t + 4 }; }
+  I.changed = -1;
+  bump(`card_${card}`).catch(() => {});
+  return { ok: true, lines: [], pool: pools(m) };
+}
+
+function fallbackLines(a: Chog, b: Chog, card: AnyCard, about: Chog | null, accepted: boolean): Line[] {
+  const L: Record<AnyCard, Line[]> = {
+    zap: [{ by: "a", text: `Hold still, ${b.name}.` }, { by: "b", text: "Why are your eyes glowing?" }, { by: "a", text: "ZAP." }, { by: "b", text: "MY FUR. MY BEAUTIFUL FUR." }],
+    crown: [{ by: "a", text: `That crown looks heavy, ${b.name}. Let me carry it.` }, { by: "b", text: "Don't you dare." }, { by: "a", text: "Too late. Bow to your Chog of the Day." }, { by: "b", text: "This town is a monarchy now?!" }],
+    frogdad: [{ by: "a", text: "That's it. I'm calling Frog Dad." }, { by: "b", text: "You wouldn't." }, { by: "a", text: "FROG DAD!" }, { by: "b", text: "Okay okay, we're friends, we're friends!" }],
+    haunt: [{ by: "a", text: `${b.name}… turn around…` }, { by: "b", text: "Who said that?!" }, { by: "a", text: "Ooooooooo." }, { by: "b", text: "I'M GOING HOME. I'M GOING HOME." }],
+    prank: [{ by: "a", text: `${b.name}, smell this flower.` }, { by: "b", text: "Is it going to squirt me?" }, { by: "a", text: "Absolutely not. *honk*" }, { by: "b", text: "Every single time." }],
+    pump: [], dump: [],
     roast: [{ by: "a", text: `${b.name}, your Rumble form is a tutorial.` }, { by: "b", text: "Say that again. Slower." }, { by: "a", text: "Your. Rumble. Form. Is. A. Tutorial." }, { by: "b", text: "Oh, it's ON." }],
     rumour: [{ by: "a", text: `Don't tell anyone, but ${about?.name ?? "someone"} has been talking about you.` }, { by: "b", text: "About ME? What did they say?!" }, { by: "a", text: "I couldn't possibly repeat it. It was mean." }, { by: "b", text: `${about?.name ?? "They"} is going to hear from me.` }],
     flirt: [{ by: "a", text: `${b.name}, did it get sunnier, or did you just walk up?` }, { by: "b", text: "That was terrible." }, { by: "a", text: "But you're smiling." }, { by: "b", text: "...Maybe a little." }],
@@ -294,7 +391,7 @@ function fallbackLines(a: Chog, b: Chog, card: CardKey, about: Chog | null, acce
 // the Lucky Lilypad seeds each side of the book so the first bet always has odds
 const HOUSE_SEED = 100;
 function pools(m: Main) {
-  const p = { a: HOUSE_SEED, b: HOUSE_SEED };
+  const p = { a: HOUSE_SEED + (m.house?.a ?? 0), b: HOUSE_SEED + (m.house?.b ?? 0) };
   for (const x of Object.values(m.bets ?? {})) p[x.side] += x.amount;
   return p;
 }

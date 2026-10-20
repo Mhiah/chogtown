@@ -4,6 +4,8 @@ import { getSession } from "@/lib/session";
 import { chogsOf } from "@/lib/chain";
 import { hasAI } from "@/lib/config";
 import { perksOf } from "@/lib/perks";
+import { powersOf } from "@/lib/powers";
+import { getChog } from "@/lib/chogs";
 
 export const dynamic = "force-dynamic";
 
@@ -15,5 +17,7 @@ export async function GET() {
   const perks = await perksOf(s?.address);
   // a holder is playing their own Chog (verified on Monad when they picked it)
   const holder = !!s?.address && !s.guest && !!s.tokenId;
-  return json({ address: s?.address ?? null, tokenId: s?.tokenId ?? null, guest: !!s?.guest, held, ai: hasAI(), perks, holder, judge: !!s?.judge, canPlay: canPlay(s) });
+  // the trait powers of the Chog this visitor plays
+  const powers = canPlay(s) && s?.tokenId ? powersOf((await getChog(s.tokenId)).traits) : [];
+  return json({ powers, address: s?.address ?? null, tokenId: s?.tokenId ?? null, guest: !!s?.guest, held, ai: hasAI(), perks, holder, judge: !!s?.judge, canPlay: canPlay(s) });
 }

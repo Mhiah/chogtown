@@ -16,9 +16,19 @@ export const CARDS = [
   { key: "challenge", name: "Challenge", emote: "🥊", what: "Needs Beef or worse. Books the Main Event." },
 ] as const;
 const STAGE_NAMES = ["Cordial", "Side-eye", "Beef", "Public feud", "Main Event"];
+/** Trait powers (src/lib/powers.ts): cards only Chogs with the right traits get. */
+export const POWER_CARDS: Record<string, { name: string; emote: string; from: string; what: string }> = {
+  zap: { name: "Zap", emote: "⚡", from: "laser eyes", what: "Laser-zap them. Stuns them and heats the feud up a lot." },
+  crown: { name: "Claim the Crown", emote: "👑", from: "a crown or royal robes", what: "Take the town's crown and become Chog of the Day." },
+  frogdad: { name: "Frog Dad", emote: "🐸", from: "a frog", what: "Frog Dad ends the feud. Back to Cordial." },
+  haunt: { name: "Haunt", emote: "👻", from: "a Skull or Radioactive base", what: "Night only (19–06 UTC). Spook them so badly they run inside." },
+  pump: { name: "Pump", emote: "🟢", from: "a Green Candle", what: "Main Event only: pump a fighter's side of the betting pool." },
+  dump: { name: "Dump", emote: "🔴", from: "a Red Candle", what: "Main Event only: dump a fighter's side of the betting pool." },
+  prank: { name: "Prank", emote: "🤡", from: "clown traits", what: "They laugh it off, or it backfires badly." },
+};
 const ARCH: Record<string, string> = { critic: "Critic", hype: "Hype Beast", dreamer: "Dreamer", schemer: "Schemer", sweetheart: "Sweetheart", drama: "Drama Queen", brawler: "Brawler", knowitall: "Know-it-all" };
 
-type Dna = { personality: string; eyes: string; mouth: string; moves: { slot: string; what: string; trait: string }[] };
+type Dna = { personality: string; eyes: string; mouth: string; moves: { slot: string; what: string; trait: string }[]; powers?: string[] };
 type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number; dna?: Dna | null };
 const TIPS = [100, 1000, 10000];
 
@@ -60,7 +70,9 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
     setBusy(true);
     try {
       const r = await api<{ feud: { heat: number; stage: number; name: string } | null; booked: boolean; refused: boolean }>("/api/live/act", { kind: "card", target: id, card });
-      if (r.booked) toast("Challenge accepted. The Main Event is booked!");
+      if (card === "pump" || card === "dump") toast(card === "pump" ? `Pumped ${c.name}'s side of the pool. Watch the odds move.` : `Dumped on ${c.name}. The odds just moved.`);
+      else if (card === "crown") toast("👑 You're Chog of the Day. Guard that crown.");
+      else if (r.booked) toast("Challenge accepted. The Main Event is booked!");
       else if (r.refused) toast(`${c.name} won't fight yet. Get to Beef first.`);
       else if (r.feud) toast(`Feud with ${c.name}: ${r.feud.name} (${r.feud.heat}/100)`);
       onClose();
@@ -68,9 +80,9 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
     setBusy(false);
   };
 
-  const W = 300, H = 400, left = Math.max(12, Math.min(innerWidth - W - 12, x - W / 2)), top = Math.max(70, Math.min(innerHeight - H - 12, y > innerHeight * .55 ? y - H - 24 : y + 18));
+  const W = 310, H = 460, left = Math.max(12, Math.min(innerWidth - W - 12, x - W / 2)), top = Math.max(70, Math.min(innerHeight - H - 12, y > innerHeight * .55 ? y - H - 24 : y + 18));
   return createPortal(
-    <div className="live-card" style={{ left, top, width: W }} role="dialog" aria-label={c.name} onClick={(e) => e.stopPropagation()}>
+    <div className="live-card" style={{ left, top, width: W, maxHeight: innerHeight - top - 12 }} role="dialog" aria-label={c.name} onClick={(e) => e.stopPropagation()}>
       <button className="live-x" onClick={onClose} aria-label="Close">✕</button>
       <div className="live-card-head">
         {c.image && <img src={c.image} alt="" />}
@@ -81,6 +93,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
           <div className="live-feud-top"><span>Made by its traits</span></div>
           <p className="live-note"><b>{feud.dna.personality}</b> because of its <i>{feud.dna.eyes || "eyes"}</i> eyes{feud.dna.mouth ? <> and <i>{feud.dna.mouth}</i> mouth</> : null}.</p>
           <div className="dna-moves">{feud.dna.moves.map((m) => <span key={m.slot} title={m.trait}><em>{m.slot}</em>{m.what}</span>)}</div>
+          {!!feud.dna.powers?.length && <div className="dna-powers">{feud.dna.powers.map((p) => <span key={p} title={`From ${POWER_CARDS[p]?.from}`}>{POWER_CARDS[p]?.emote} {POWER_CARDS[p]?.name}</span>)}</div>}
         </div>
       )}
       {mine && <p className="live-note">That's you. Tap anywhere on the island to walk, or tap another Chog to play a card on it.</p>}
@@ -99,6 +112,21 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
               <span className="e">{k.emote}</span><b>{k.name}</b>
             </button>
           ))}
+        </div>
+      )}
+      {!mine && playing && !taken && !!me?.powers?.length && (
+        <div className="live-cards powers">
+          {me.powers.map((k) => {
+            const pc = POWER_CARDS[k]; if (!pc) return null;
+            const mainOn = !!live?.main && !live.main.done;
+            const fighter = mainOn && (live!.main!.a.id === id || live!.main!.b.id === id);
+            const off = busy || (k === "haunt" && !live?.night) || ((k === "pump" || k === "dump") ? !fighter : mainOn);
+            return (
+              <button key={k} className="live-cardbtn power" disabled={off} onClick={() => play(k)} onPointerEnter={() => setHint(`${pc.what} (from your ${pc.from})`)} title={pc.what}>
+                <span className="e">{pc.emote}</span><b>{pc.name}</b>
+              </button>
+            );
+          })}
         </div>
       )}
       {!mine && playing && !taken && (
@@ -141,10 +169,11 @@ export function PlayBar({ live, me, name, onJoin, onLeave, onSignIn }: { live: L
 }
 
 export function FeudTicker({ live }: { live: LiveView | null }) {
-  if (!live?.feuds.length) return null;
+  if (!live?.feuds.length && !live?.crown) return null;
   return (
     <div className="feuds glass" aria-label="Hottest feuds on the island">
-      <div className="eyebrow">Hot feuds</div>
+      {live.crown && <div className="crown-row">👑 <span>Chog of the Day</span><b>{live.crown.name}</b></div>}
+      {!!live.feuds.length && <div className="eyebrow">Hot feuds</div>}
       {live.feuds.slice(0, 4).map((f) => (
         <div key={`${f.a}-${f.b}`} className="feud-row">
           <span className="who">{f.an} <i>vs</i> {f.bn}</span>

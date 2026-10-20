@@ -56,6 +56,7 @@ export interface LiveView {
   now: number; t: number; rally: boolean; players: number[];
   feuds: { a: number; b: number; an: string; bn: string; heat: number; stage: number }[];
   main: MainView | null; lastMain: MainView | null;
+  crown?: { id: number; name: string; since: number } | null; night?: boolean;
   chogs: { id: number; name: string; archetype: string; image: string | null; out: boolean }[];
 }
 export interface MainView { id: string; a: any; b: any; seed: number; why: string; bellAt: number; startAt: number; endAt: number; picks: { a: number; b: number }; pool?: { a: number; b: number }; done: boolean; winner: "a" | "b" | null }
@@ -129,12 +130,14 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
       if (dead) return;
       const v = JSON.parse((e as MessageEvent).data);
       follow.load(v);
+      crownRef.current = v.crown?.id ?? null;
       if (simRef.current !== follow) { simRef.current = follow; (window as any).__island = follow; }
       liveCb.current?.(v);
     });
     return () => { dead = true; clearTimeout(fallback); es.close(); };
   }, []);
   const mineRef = useRef(mine); mineRef.current = mine;
+  const crownRef = useRef<number | null>(null);
   const view = useRef({ W: 0, H: 0, base: 0, which: "w", dpr: 1, still: false });
   view.current = { W: c.w, H: c.h, base: (tall ? .042 : .022) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
   useEffect(() => {
@@ -148,7 +151,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey, mine, onCh
       if (!sim || !v.W) return;
       if (cv.width !== Math.round(v.W * v.dpr)) { cv.width = Math.round(v.W * v.dpr); cv.height = Math.round(v.H * v.dpr); }
       sim.step(dt);
-      for (const ch of sim.chogs) ch.mine = ch.id === mineRef.current;
+      for (const ch of sim.chogs) { ch.mine = ch.id === mineRef.current; ch.crowned = ch.id === crownRef.current; }
       hits.current = drawIsland(cv.getContext("2d")!, sim, { ...v, still }, sim.t, hoverChog.current);
     };
     raf = requestAnimationFrame(loop);

@@ -72,7 +72,14 @@ export function drawIsland(ctx, sim, view, now, hover) {
     if (im) { ctx.scale(c.face < 0 ? -1 : 1, 1); ctx.drawImage(im, c.face < 0 ? -cx - cw : cx, cy, cw, ch); }
     else { ctx.fillStyle = '#efe8ff'; ctx.fillRect(cx, cy, cw, ch); }
     ctx.restore();
-    if (c.owned) {
+    if (c.crowned) {
+      // Chog of the Day: a big crown and a golden ring
+      ctx.save(); ctx.shadowColor = 'rgba(255,191,60,.9)'; ctx.shadowBlur = s * .5;
+      ctx.strokeStyle = '#ffbf3c'; ctx.lineWidth = Math.max(2.5, s * .09);
+      rr(ctx, cx - s * .1, cy - s * .1, cw + s * .2, ch + s * .2, s * .24); ctx.stroke(); ctx.restore();
+      ctx.font = `${s * .8}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('👑', 0, cy - s * .05);
+    } else if (c.owned) {
       // a holder's Chog wears a crown
       ctx.font = `${s * .5}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       ctx.fillText('👑', cx + cw - s * .08, cy + s * .08);

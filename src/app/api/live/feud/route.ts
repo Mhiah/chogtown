@@ -4,13 +4,14 @@ import { island, feudOf, stageOf, STAGES, tipsFor, holderOf } from "@/live/islan
 import { getChog } from "@/lib/chogs";
 import { ARCHETYPES } from "@/lib/personality";
 import { kitFor, kitLines } from "@/lib/kit";
+import { powersOf } from "@/lib/powers";
 
 /** How a Chog's NFT traits make it who it is: personality from its eyes and mouth, fight moves from its traits. */
 async function dna(id: number) {
   const c = await getChog(id);
   const t = c.traits as Record<string, string>;
   const moves = kitLines(kitFor(id, c.traits)).slice(0, 3).map((l) => ({ ...l, trait: t[l.slot === "Head" ? "Head" : l.slot] ?? "" }));
-  return { personality: ARCHETYPES[c.archetype].name, eyes: t.Eyes ?? "", mouth: t.Mouth ?? "", moves };
+  return { personality: ARCHETYPES[c.archetype].name, eyes: t.Eyes ?? "", mouth: t.Mouth ?? "", moves, powers: powersOf(c.traits) };
 }
 
 export const dynamic = "force-dynamic";

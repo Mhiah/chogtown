@@ -381,3 +381,14 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .dna-moves{display:flex;flex-wrap:wrap;gap:5px}
 .dna-moves span{font-size:12px;font-weight:800;color:var(--ink);background:#f3eeff;border-radius:10px;padding:3px 8px}
 .dna-moves em{font-style:normal;color:var(--rose);margin-right:4px}
+.live-cards.powers .live-cardbtn.power{background:linear-gradient(135deg,#fff6dc,#ffe7b0);box-shadow:inset 0 0 0 2px #ffcf5a}
+.live-cards.powers .live-cardbtn.power b{color:#7a4a00}
+.dna-powers{display:flex;flex-wrap:wrap;gap:5px}
+.dna-powers span{font-size:12px;font-weight:800;color:#7a4a00;background:#ffefc2;border-radius:10px;padding:3px 8px}
+.crown-row{display:flex;align-items:center;gap:6px;background:#2b1b5a;color:#fff;border-radius:14px;padding:7px 10px;font-weight:800;font-size:13px}
+.crown-row span{color:#cbb9ff;font-weight:700}
+.crown-row b{margin-left:auto;font-family:var(--display);font-weight:600;color:#ffbf3c}
+.live-cards.powers{grid-template-columns:repeat(3,1fr);gap:5px}
+.live-cards.powers .live-cardbtn{padding:6px 6px;gap:4px;justify-content:center;flex-direction:column;text-align:center}
+.live-cards.powers .live-cardbtn b{font-size:12.5px;line-height:1.1}
+.live-cards.powers .live-cardbtn .e{font-size:17px}
