@@ -1,8 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 
 /**
  * A tiny document store: collections of JSON documents keyed by id.
- * Uses Supabase (table `docs`, see supabase/schema.sql) when SUPABASE_URL and
+ * Uses plain Postgres when DATABASE_URL is set (the `docs` table is created on first use),
+ * else Supabase (table `docs`, see supabase/schema.sql) when SUPABASE_URL and
  * SUPABASE_SERVICE_ROLE_KEY are set, otherwise an in-memory map that lasts for
  * the life of the server process (fine for local dev and demos).
  */
@@ -62,9 +64,40 @@ class SupabaseStore implements Store {
   }
 }
 
+class PgStore implements Store {
+  private ready: Promise<unknown>;
+  constructor(private sql: postgres.Sql) {
+    this.ready = sql`create table if not exists docs (col text not null, id text not null, data jsonb not null, updated_at timestamptz not null default now(), primary key (col, id))`
+      .then(() => sql`create index if not exists docs_col_updated on docs (col, updated_at desc)`);
+  }
+  async get<T>(col: string, id: string) {
+    await this.ready;
+    const r = await this.sql`select data from docs where col = ${col} and id = ${id}`;
+    return (r[0]?.data as T) ?? null;
+  }
+  async set<T>(col: string, id: string, data: T) {
+    await this.ready;
+    await this.sql`insert into docs (col, id, data, updated_at) values (${col}, ${id}, ${this.sql.json(data as postgres.JSONValue)}, now())
+      on conflict (col, id) do update set data = excluded.data, updated_at = now()`;
+  }
+  async list<T>(col: string, limit = 500) {
+    await this.ready;
+    const r = await this.sql`select data from docs where col = ${col} order by updated_at desc limit ${limit}`;
+    return r.map((x) => x.data as T);
+  }
+  async del(col: string, id: string) {
+    await this.ready;
+    await this.sql`delete from docs where col = ${col} and id = ${id}`;
+  }
+}
+
 const g = globalThis as unknown as { __chogStore?: Store };
 
 export function store(): Store {
+  if (!g.__chogStore && process.env.DATABASE_URL) {
+    // serverless: one small connection per instance, dropped when idle
+    g.__chogStore = new PgStore(postgres(process.env.DATABASE_URL, { max: 2, idle_timeout: 20, connect_timeout: 10, prepare: false }));
+  }
   if (!g.__chogStore) {
     const raw = process.env.SUPABASE_URL?.trim(), key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     // Accept the URL as copied from any Supabase page, e.g. with /rest/v1/ on the end.

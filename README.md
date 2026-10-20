@@ -42,7 +42,7 @@ Everything works without keys: Chogs talk from a small script, nights use templa
 
 - `XAI_API_KEY` (Grok, console.x.ai) or `GROQ_API_KEY` (free plan at console.groq.com) for real voices without an Anthropic key. Grok is used first if both are set.
 - `ANTHROPIC_API_KEY` for real voices, gossip and debates (Claude, model `claude-haiku-5-5` by default, which costs a fraction of a cent per chat; set `CHOG_MODEL` to use a bigger model).
-- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` to persist data. Run `supabase/schema.sql` once.
+- `DATABASE_URL` (any Postgres; the table is created on first use) or `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (run `supabase/schema.sql` once) to persist data.
 - `SESSION_SECRET` (required in production) and `CRON_SECRET`.
 
 Deploy on Vercel. `vercel.json` runs `/api/cron/night` at 00:05 UTC to play out the night, settle the debate and start the next one. If a night is missed, the next visit to the Gazette runs it.
