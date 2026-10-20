@@ -58,6 +58,8 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
   const hits = useRef<{ id: number; x: number; y: number; w: number; h: number }[]>([]);
   const hoverChog = useRef<number | null>(null);
   const [chogTag, setChogTag] = useState(false);
+  const [inside, setInside] = useState<Partial<Record<PlaceKey, number>>>({});
+  useEffect(() => { const i = setInterval(() => simRef.current && setInside(simRef.current.inside()), 1000); return () => clearInterval(i); }, []);
 
   useEffect(() => {
     const r = () => setSize({ W: innerWidth, H: innerHeight });
@@ -90,7 +92,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
     return () => { dead = true; };
   }, []);
   const view = useRef({ W: 0, H: 0, base: 0, which: "w", dpr: 1, still: false });
-  view.current = { W: c.w, H: c.h, base: (tall ? .044 : .025) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
+  view.current = { W: c.w, H: c.h, base: (tall ? .042 : .022) * c.w, which: tall ? "t" : "w", dpr: Math.min(2, typeof devicePixelRatio === "number" ? devicePixelRatio : 1), still: false };
   useEffect(() => {
     const cv = live.current; if (!cv) return;
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -131,7 +133,7 @@ export default function Diorama({ active, entered, onOpen, bounceKey }: { active
           <button key={p.key} className={`dio-spot${hover === p.key ? " hot" : ""}`} style={at(art.spots[p.key])}
             onPointerEnter={() => setHover(p.key)} onPointerLeave={() => setHover(null)} onClick={() => onOpen(p.key)} aria-label={`${p.name}: ${BLURB[p.key]}`}>
             <i className="ring" />
-            <span className="dio-tag"><img src={`/toy/i-${p.key}.webp`} alt="" /><span><b className="long">{p.name}</b><b className="short">{p.dock}</b><em>{BLURB[p.key]}</em></span></span>
+            <span className="dio-tag"><img src={`/toy/i-${p.key}.webp`} alt="" />{!!inside[p.key] && <i className="dio-count" title={`${inside[p.key]} Chogs inside`}>{inside[p.key]}</i>}<span><b className="long">{p.name}</b><b className="short">{p.dock}</b><em>{BLURB[p.key]}</em></span></span>
           </button>
         ))}
       </div>

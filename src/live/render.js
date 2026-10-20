@@ -38,7 +38,7 @@ export function drawIsland(ctx, sim, view, now, hover) {
   const { W, H, base, which, dpr, still } = view;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  const list = sim.chogs.map((c) => ({ c, p: sim.where(c, which) })).sort((a, b) => a.p.y - b.p.y);
+  const list = sim.chogs.filter((c) => c.out || c.fade > 0).map((c) => ({ c, p: sim.where(c, which) })).sort((a, b) => a.p.y - b.p.y);
   const hits = [];
   const bubbles = [];
   for (const { c, p } of list) {
@@ -48,11 +48,13 @@ export function drawIsland(ctx, sim, view, now, hover) {
     const ph = now * 9 + c.id;
     const bob = c.walking && !still ? Math.abs(Math.sin(ph)) * s * .14 : (still ? 0 : Math.sin(now * 2 + c.id) * s * .015);
     const tilt = c.walking && !still ? Math.sin(ph) * .09 : 0;
+    ctx.globalAlpha = c.fade;
     // shadow
     ctx.fillStyle = 'rgba(60,30,120,.22)';
     ctx.beginPath(); ctx.ellipse(x, y, s * .42 - bob * .5, s * .13, 0, 0, Math.PI * 2); ctx.fill();
     ctx.save();
     ctx.translate(x, y - bob); ctx.rotate(tilt);
+    if (c.fade < 1) { const k = .6 + .4 * c.fade; ctx.scale(k, k); }
     // base disc
     ctx.fillStyle = c.mine ? ROSE : '#fff';
     ctx.beginPath(); ctx.ellipse(0, -s * .04, s * .34, s * .1, 0, 0, Math.PI * 2); ctx.fill();
@@ -73,6 +75,7 @@ export function drawIsland(ctx, sim, view, now, hover) {
       rr(ctx, cx - s * .07, cy - s * .07, cw + s * .14, ch + s * .14, s * .2); ctx.stroke();
     }
     ctx.restore();
+    ctx.globalAlpha = 1;
     const top = y - bob - s * .27 - ch;
     hits.push({ id: c.id, x: x - s * .6, y: top, w: s * 1.2, h: s * 1.35 });
     if (c.bubble) bubbles.push({ c, x, y: top - 4, s });
@@ -83,12 +86,13 @@ export function drawIsland(ctx, sim, view, now, hover) {
     for (const n of NODES) { const [nx, ny] = n[which]; ctx.beginPath(); ctx.arc(nx * W, ny * H, 4, 0, 7); ctx.fill(); ctx.fillText(n.id, nx * W + 6, ny * H - 6); }
   }
   // bubbles on top of everyone
-  for (const b of bubbles) bubble(ctx, b, now, W);
+  const placed = [];
+  for (const b of bubbles) bubble(ctx, b, now, W, placed);
   return hits;
 }
 
-function bubble(ctx, { c, x, y, s, tag }, now, W) {
-  const fs = Math.max(11, Math.min(14, s * .32));
+function bubble(ctx, { c, x, y, s, tag }, now, W, placed) {
+  const fs = Math.max(12, Math.min(15, s * .36));
   const text = tag ? `${c.name} #${c.id}` : c.bubble.text;
   const age = tag ? 1 : now - c.bubble.t0, left = tag ? 1 : c.bubble.until - now;
   const a = Math.max(0, Math.min(1, age / .18, left / .3));
@@ -101,12 +105,19 @@ function bubble(ctx, { c, x, y, s, tag }, now, W) {
   const lw = Math.max(...lines.map((l) => ctx.measureText(l).width));
   const pad = fs * .7, bw = lw + pad * 2, bh = lines.length * fs * 1.25 + pad * 1.3;
   let bx = x - bw / 2; bx = Math.max(6, Math.min(W - bw - 6, bx));
-  const by = y - bh - fs * .6;
+  let by = y - bh - fs * .6;
+  // never stack bubbles on top of each other: lift this one above any it would cover
+  for (let k = 0; k < 6; k++) {
+    const hit = placed.find((q) => bx < q.x + q.w + 4 && bx + bw + 4 > q.x && by < q.y + q.h + 4 && by + bh + 4 > q.y);
+    if (!hit) break; by = hit.y - bh - 6;
+  }
+  placed.push({ x: bx, y: by, w: bw, h: bh });
   ctx.translate(x, y); ctx.scale(pop, pop); ctx.translate(-x, -y);
   ctx.shadowColor = 'rgba(43,27,90,.22)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
   ctx.fillStyle = tag ? INK : '#fff';
   rr(ctx, bx, by, bw, bh, Math.min(16, bh / 2)); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x - fs * .45, by + bh - 1); ctx.lineTo(x, y); ctx.lineTo(x + fs * .45, by + bh - 1); ctx.fill();
+  const tx = Math.max(bx + fs, Math.min(bx + bw - fs, x));
+  ctx.beginPath(); ctx.moveTo(tx - fs * .45, by + bh - 1); ctx.lineTo(x, Math.max(y, by + bh + fs * .6)); ctx.lineTo(tx + fs * .45, by + bh - 1); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = tag ? '#fff' : INK; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
   const mid = bx + bw / 2;

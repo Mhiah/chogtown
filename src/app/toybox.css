@@ -233,3 +233,4 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .diorama .dio-spot:hover .dio-tag,.diorama .dio-spot.hot .dio-tag,.diorama .dio-spot:focus-visible .dio-tag{padding:6px 14px 6px 6px;gap:8px}
 .diorama .dio-spot:hover .dio-tag>span,.diorama .dio-spot.hot .dio-tag>span,.diorama .dio-spot:focus-visible .dio-tag>span{max-width:260px}
 .diorama .dio-spot .dio-tag img{width:34px;height:34px}
+.dio-count{position:absolute;left:30px;top:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--rose,#ff7aa8);color:#fff;font:800 11px/20px Nunito,system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 2px 6px rgba(43,27,90,.25)}
