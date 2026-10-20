@@ -133,7 +133,7 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 
 /* ---------- intro: the toy Chog waves you in over the real 3D town ---------- */
 .top{z-index:11}
-.intro{background:linear-gradient(90deg,rgba(239,231,255,.92) 0%,rgba(239,231,255,.6) 30%,rgba(239,231,255,0) 50%);justify-content:center;padding-bottom:0}
+.intro{background:linear-gradient(90deg,rgba(239,231,255,.97) 0%,rgba(239,231,255,.9) 36%,rgba(239,231,255,.35) 56%,rgba(239,231,255,0) 70%);justify-content:center;padding-bottom:0}
 .intro-inner{max-width:1240px;gap:18px}
 .intro .eyebrow{color:var(--rose)}
 .intro h1{font-family:var(--display);font-weight:700;color:var(--amethyst);letter-spacing:-.02em;text-shadow:none;font-size:clamp(56px,8.6vw,118px);line-height:.92}

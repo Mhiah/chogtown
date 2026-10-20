@@ -72,7 +72,7 @@ function Booth({ shell, goHome }: { shell: Shell; goHome(): void }) {
   return (
     <>
       <div className="card booth-hero">
-        <div className="ico" aria-hidden="true">📸</div>
+        <div className="ico" aria-hidden="true"><img src="/toy/selfie.webp" alt="" /></div>
         <div><b>Your face fires your Chog</b><p className="note" style={{ marginTop: 4 }}>Raise your eyebrows to fire its eyes, open your mouth for its mouth power. 60 seconds of jeets. Your camera never leaves this browser.</p></div>
       </div>
       <div className="card">
