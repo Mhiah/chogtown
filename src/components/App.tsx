@@ -119,7 +119,7 @@ export default function App() {
         <div className="meta">
           <Quests entered={entered} playing={!!me?.tokenId && !!live?.players.includes(me.tokenId)} toast={toast} />
           <button className="pill glass btnlike help" aria-label={muted ? "Sound on" : "Sound off"} onClick={() => { const m = !muted; setMuted(m); setMute(m); if (!m) { startMusic(); sfx.blip(); } }}>{muted ? "🔇" : "🔊"}</button>
-          <button className="pill glass btnlike help" aria-label="How Chogtown works" onClick={() => { setEntered(true); setHelp(true); }}>?</button>
+          <button className="pill glass btnlike how" aria-label="How Chogtown works" onClick={() => { setEntered(true); setHelp(true); }}><span className="lbl-l">How it works</span><span className="lbl-s">Help</span></button>
           <span className="pill glass when">{clock} <b>·</b> {population ? population.toLocaleString() : "…"} Chogs in town</span>
           <button className="pill glass btnlike" onClick={() => open("home")}>
             {me?.address ? short(me.address) : me?.guest ? "Guest" : "Sign in"}
