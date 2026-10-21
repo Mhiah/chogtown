@@ -460,3 +460,32 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
 .top .how{font-family:var(--display);font-weight:600;font-size:14px}
 .top .how .lbl-s{display:none}
 @media (max-width:700px){.top .how .lbl-l{display:none}.top .how .lbl-s{display:inline}}
+/* ---------- phones: nothing overlaps ---------- */
+@media (max-width:700px){
+  /* the intro always stops above the dock */
+  .intro{justify-content:flex-start;padding-bottom:calc(112px + env(safe-area-inset-bottom,0px));overflow-y:auto}
+  .intro-inner{gap:14px}
+  /* tabs scroll sideways instead of spilling off the sheet */
+  .tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{flex:1 0 auto;white-space:nowrap;padding-inline:12px}
+  /* the quests popup sits under the header, inside the screen */
+  .quests-pop{position:fixed;left:12px;right:12px;top:calc(64px + env(safe-area-inset-top,0px));width:auto}
+  /* toasts go above the dock, clear of sheet headers */
+  .toast{top:auto;bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+}
+/* short phones (Safari with its toolbars): a tighter intro */
+@media (max-width:700px) and (max-height:760px){
+  .intro{padding-top:76px}
+  .intro h1{font-size:46px}
+  .intro p{font-size:14.5px;line-height:1.45}
+  .intro .eyebrow{font-size:10.5px}
+  .intro .btn{min-height:46px;font-size:15px}
+  .intro .stats b{font-size:20px}
+}
+@media (max-width:700px){
+  /* the intro is a solid card on phones, so the town never shows through the words */
+  .intro{background:linear-gradient(180deg,rgba(239,231,255,.97) 0%,rgba(239,231,255,.94) 78%,rgba(239,231,255,.6) 100%)}
+  .main-call{bottom:calc(150px + env(safe-area-inset-bottom,0px));white-space:normal;text-align:center;width:max-content;max-width:calc(100% - 32px)}
+}
+.sheet-body>.tabs,.sheet-body .tabs{flex-shrink:0}

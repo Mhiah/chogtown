@@ -112,7 +112,7 @@ export default function App() {
         onChog={(id, x, y) => setPicked({ id, x, y })} onWalk={walk} onLive={onLive} />
       {entered && !active && <><PlayBar live={live} me={me} name={myName} onJoin={join} onLeave={() => setPicked(null)} onSignIn={() => open("home")} /><FeudTicker live={live} /></>}
       {picked && <ChogCard id={picked.id} x={picked.x} y={picked.y} live={live} me={me} onClose={() => setPicked(null)} onPlayAs={playAs} onSignIn={() => open("home")} toast={toast} />}
-      <MainEvent live={live} offset={offset} toast={toast} />
+      <MainEvent live={live} offset={offset} toast={toast} entered={entered} quiet={!!active} />
       <Onboarding entered={entered && !active} open={help} onClose={() => setHelp(false)} />
       <header className="top">
         <div className="brand"><span className="mark"><img src="/toy/head.webp" alt="" /></span> <span className="brand-name">Chogtown</span></div>

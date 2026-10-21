@@ -189,7 +189,7 @@ export function FeudTicker({ live }: { live: LiveView | null }) {
 }
 
 /** The Main Event: bell, countdown, picks, and the fight itself, in sync for everyone. */
-export function MainEvent({ live, offset, toast }: { live: LiveView | null; offset: number; toast(t: string): void }) {
+export function MainEvent({ live, offset, toast, entered = true, quiet = false }: { live: LiveView | null; offset: number; toast(t: string): void; entered?: boolean; quiet?: boolean }) {
   const m = live?.main ?? null;
   const [now, setNow] = useState(Date.now());
   const [open, setOpen] = useState(false);
@@ -201,7 +201,7 @@ export function MainEvent({ live, offset, toast }: { live: LiveView | null; offs
   const rung = useRef<string | null>(null);
   useEffect(() => { if (m && !m.done && rung.current !== m.id && now >= local(m.bellAt)) { rung.current = m.id; sfx.bell(); } }, [m, now]); // eslint-disable-line react-hooks/exhaustive-deps
   // the fight opens by itself a few seconds before the bell, unless you closed it
-  useEffect(() => { if (m && !m.done && dismissed !== m.id && now >= local(m.startAt) - 6000 && now < local(m.endAt)) setOpen(true); }, [m, now, dismissed]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (entered && m && !m.done && dismissed !== m.id && now >= local(m.startAt) - 6000 && now < local(m.endAt)) setOpen(true); }, [m, now, dismissed, entered]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!m) setOpen(false); }, [m]);
   if (!m) return null;
   const toStart = Math.max(0, Math.ceil((local(m.startAt) - now) / 1000));
@@ -213,7 +213,7 @@ export function MainEvent({ live, offset, toast }: { live: LiveView | null; offs
   const picked = mine[m.id];
   return (
     <>
-      {!open && (
+      {!open && entered && !quiet && (
         <div className="main-banner" role="status">
           <span className="bell">🔔</span>
           <span><b>MAIN EVENT</b> {m.a.name} vs {m.b.name} · {m.done ? `${(m.winner === "a" ? m.a : m.b).name} won` : live_ ? "LIVE now" : `starts in ${Math.floor(toStart / 60)}:${String(toStart % 60).padStart(2, "0")}`}</span>
