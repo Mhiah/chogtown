@@ -1,6 +1,6 @@
 import { json, fail, canPlay, WATCH_ONLY } from "@/lib/api";
 import { getSession, setSession, newVid } from "@/lib/session";
-import { join, walk, play, pickSide, ringNow, shout, CARDS, type AnyCard } from "@/live/island";
+import { join, walk, play, pickSide, ringNow, shout, devTransfer, CARDS, type AnyCard } from "@/live/island";
 import { POWERS } from "@/lib/powers";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     const r = await pickSide(v.vid, b.side);
     return r.ok ? json(r) : fail(r.error!);
   }
+  if (b.kind === "devtransfer" && process.env.NODE_ENV !== "production" && Number.isInteger(b.id)) return json(await devTransfer(b.id));
   if (!s) return fail("Pick a Chog to play first.", 401);
   if (!s.tokenId) return fail("Pick a Chog to play first.", 401);
   if (!canPlay(s)) return fail(WATCH_ONLY, 403);

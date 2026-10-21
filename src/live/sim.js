@@ -95,7 +95,8 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
   /** Two Chogs at the same spot talk: a line, a reply, sometimes a comeback. */
   function meet(a, b) {
     const rel = relOf(a, b);
-    const kind = rel === 'rival' ? 'rival' : rel === 'friend' ? 'friend' : 'hi';
+    // a holder's agenda colours how its Chog greets people
+    const kind = a.agenda === 'fights' || b.agenda === 'fights' || rel === 'rival' ? 'rival' : a.agenda === 'friends' || rel === 'friend' ? 'friend' : 'hi';
     const lines = [{ by: a, text: lineFor(a, b, kind), emote: EMOTE[kind] }, { by: b, text: lineFor(b, a, 'reply'), emote: '' }];
     if (kind === 'rival' && r() < .6) lines.push({ by: a, text: lineFor(a, b, 'rival'), emote: '😤' });
     talks.push({ a, b, lines, i: -1, next: t });
@@ -146,12 +147,16 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
         c.home -= dt;
         if (c.home <= 0 && onStage() < STAGE && !rally) {
           const to = goal(c);
-          if (to && goWalk(c, to)) { c.out = true; c.fade = 0; }
+          if (to && goWalk(c, to)) {
+            c.out = true; c.fade = 0;
+            // a Legendary walking out is an event
+            if (c.tier === 'Legendary') { c.bubble = { text: 'The Legendary has arrived.', emote: '✨', t0: t, until: t + 4.5 }; changed++; }
+          }
           else c.home = 2 + r() * 4;
         }
         continue;
       }
-      if (c.leaving) { if (c.fade <= 0) { c.out = false; c.leaving = false; c.home = 20 + r() * 50; unbook(c); } continue; }
+      if (c.leaving) { if (c.fade <= 0) { c.out = false; c.leaving = false; c.home = (20 + r() * 50) * (c.agenda === 'lowkey' ? 3 : 1); unbook(c); } continue; }
       if (c.walking) {
         const from = c.path[c.leg], to = c.path[c.leg + 1];
         c.legT += dt * SPEED / Math.max(.004, dist(from, to));
@@ -167,7 +172,7 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
       c.idle -= dt;
       if (c.idle <= 0) {
         // at a door, sometimes head inside; otherwise wander on
-        if (DOORS[c.at] && r() < .45) { c.leaving = true; continue; }
+        if (DOORS[c.at] && r() < (c.agenda === 'lowkey' ? .9 : .45)) { c.leaving = true; continue; }
         const to = goal(c);
         if (!to || !goWalk(c, to)) c.idle = 2 + r() * 4;
       }
@@ -219,7 +224,7 @@ export function createSim(cast, { seed = 1969, follow = false } = {}) {
       out.push({
         id: c.id, name: c.name, archetype: c.archetype, image: c.image, at: c.at, path: c.path, leg: c.leg, legT: +c.legT.toFixed(3),
         slot: c.slot, dest: c.dest, out: c.out, fade: +c.fade.toFixed(2), leaving: !!c.leaving, face: c.face, walking: c.walking, lane: +c.lane.toFixed(4),
-        player: !!c.player, owned: !!c.owned, bubble: c.bubble && { text: c.bubble.text, emote: c.bubble.emote, age: +(t - c.bubble.t0).toFixed(2), left: +(c.bubble.until - t).toFixed(2) },
+        player: !!c.player, owned: !!c.owned, tier: c.tier || 'Common', agenda: c.agenda || null, bubble: c.bubble && { text: c.bubble.text, emote: c.bubble.emote, age: +(t - c.bubble.t0).toFixed(2), left: +(c.bubble.until - t).toFixed(2) },
       });
     }
     return { t: +t.toFixed(2), chogs: out, inside: inside(), rally };

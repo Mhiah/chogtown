@@ -46,7 +46,9 @@ export function drawIsland(ctx, sim, view, now, hover) {
   for (const { c, p } of list) {
     const x = p.x * W, y = p.y * H;
     const depth = which === 't' ? .8 + (p.y - .5) * 1.4 : .78 + (p.y - .45) * 1.3;
-    const s = base * Math.max(.6, depth) * (c.mine ? 1.25 : 1);
+    // rarity is fame: Legendaries and Epics stand taller in town
+    const fame = c.tier === 'Legendary' ? 1.35 : c.tier === 'Epic' ? 1.18 : c.tier === 'Rare' ? 1.08 : 1;
+    const s = base * Math.max(.6, depth) * Math.max(fame, c.mine ? 1.25 : 1);
     const ph = now * 9 + c.id;
     const bob = c.walking && !still ? Math.abs(Math.sin(ph)) * s * .14 : (still ? 0 : Math.sin(now * 2 + c.id) * s * .015);
     const tilt = c.walking && !still ? Math.sin(ph) * .09 : 0;
@@ -64,7 +66,8 @@ export function drawIsland(ctx, sim, view, now, hover) {
     ctx.fillRect(-s * .05, -s * .2, s * .1, s * .16);
     // card
     const cw = s, ch = s, cx = -cw / 2, cy = -s * .2 - ch;
-    ctx.shadowColor = 'rgba(43,27,90,.28)'; ctx.shadowBlur = s * .18; ctx.shadowOffsetY = s * .06;
+    ctx.shadowColor = c.tier === 'Legendary' ? 'rgba(255,191,60,.95)' : c.tier === 'Epic' ? 'rgba(170,110,255,.85)' : 'rgba(43,27,90,.28)';
+    ctx.shadowBlur = c.tier === 'Legendary' ? s * (.55 + Math.sin(now * 3 + c.id) * .15) : c.tier === 'Epic' ? s * .4 : s * .18; ctx.shadowOffsetY = c.tier === 'Legendary' || c.tier === 'Epic' ? 0 : s * .06;
     ctx.fillStyle = '#fff'; rr(ctx, cx - s * .07, cy - s * .07, cw + s * .14, ch + s * .14, s * .2); ctx.fill();
     ctx.shadowColor = 'transparent';
     const im = art(c.image);

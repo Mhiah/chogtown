@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { api, errMsg, sendChogTip, short } from "./client";
+import { api, errMsg, sendChogTip, short, ago } from "./client";
 import { sfx } from "@/arena/sfx";
 import type { LiveView, MainView } from "./Diorama";
 import type { Me } from "./types";
@@ -29,8 +29,8 @@ export const POWER_CARDS: Record<string, { name: string; emote: string; from: st
 };
 const ARCH: Record<string, string> = { critic: "Critic", hype: "Hype Beast", dreamer: "Dreamer", schemer: "Schemer", sweetheart: "Sweetheart", drama: "Drama Queen", brawler: "Brawler", knowitall: "Know-it-all" };
 
-type Dna = { personality: string; eyes: string; mouth: string; moves: { slot: string; what: string; trait: string }[]; powers?: string[] };
-type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number; dna?: Dna | null };
+type Dna = { personality: string; eyes: string; mouth: string; moves: { slot: string; what: string; trait: string }[]; powers?: string[]; tier?: string };
+type Feud = { heat: number; stage: number; name: string; log: string[]; next: { at: number; name: string } | null; owner?: string | null; tips?: number; dna?: Dna | null; prov?: { moves: number; last: { t: number } | null } | null };
 const TIPS = [100, 1000, 10000];
 
 export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toast }: {
@@ -88,8 +88,15 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
       <button className="live-x" onClick={onClose} aria-label="Close">✕</button>
       <div className="live-card-head">
         {c.image && <img src={c.image} alt="" />}
-        <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · 🎮 a player" : ""}</em></div>
+        <div><b>{c.name} <span>#{c.id}</span></b><em>{ARCH[c.archetype] ?? c.archetype}{taken ? " · 🎮 a player" : ""}</em>
+          {feud?.dna?.tier && feud.dna.tier !== "Common" && <i className={`tier t-${feud.dna.tier.toLowerCase()}`}>{feud.dna.tier}</i>}</div>
       </div>
+      {feud && (
+        <p className="live-note holder-line">
+          {feud.owner ? <>Held by <b>{short(feud.owner)}</b> on Monad</> : "Holder unknown right now"}
+          {feud.prov?.moves ? <> · changed hands {feud.prov.moves}× since Chogtown opened{feud.prov.last ? `, last ${ago(feud.prov.last.t)}` : ""}</> : null}
+        </p>
+      )}
       {feud?.dna && (
         <div className="live-dna" title="Everything this Chog does comes from its NFT traits">
           <div className="live-feud-top"><span>Made by its traits</span></div>
@@ -98,6 +105,7 @@ export function ChogCard({ id, x, y, live, me, onClose, onPlayAs, onSignIn, toas
           {!!feud.dna.powers?.length && <div className="dna-powers">{feud.dna.powers.map((p) => <span key={p} title={`From ${POWER_CARDS[p]?.from}`}>{POWER_CARDS[p]?.emote} {POWER_CARDS[p]?.name}</span>)}</div>}
         </div>
       )}
+      {mine && me?.canPlay && <AgendaPicker />}
       {mine && <p className="live-note">That's you. Tap anywhere on the island to walk, or tap another Chog to play a card on it.</p>}
       {!mine && me?.canPlay && feud && (
         <div className="live-feud">
@@ -252,7 +260,11 @@ function MainStage({ m, now, local, picked, onPick, onClose }: { m: MainView; no
           // a late joiner fast-forwards through the fight: stay quiet until it's caught up
           if (Date.now() - local(m.startAt) > 0 && caughtUp === false) return;
           const v = nameOf(e.side ?? 0), o = nameOf(1 - (e.side ?? 0));
-          if (e.type === "go") { say(`And we're LIVE! ${m.a.name} versus ${m.b.name}!`, true); burst(10, ["👏", "📣", "🔥"]); }
+          if (e.type === "go") {
+            const legend = [m.a, m.b].find((f) => f.tier === "Legendary");
+            say(legend ? `A LEGENDARY in the ring! ${legend.name} is here! ${m.a.name} versus ${m.b.name}!` : `And we're LIVE! ${m.a.name} versus ${m.b.name}!`, true);
+            burst(legend ? 22 : 10, legend ? ["✨", "👑", "📣", "🔥"] : ["👏", "📣", "🔥"]);
+          }
           if (e.type === "smash") { say(pickOne([`OOF. ${v} felt that one!`, `${v} takes a monster hit!`, `${o} is putting on a show!`])); burst(6, ["😱", "🔥", "💥"]); }
           if (e.type === "crit") say(`Lucky crit from ${v}!`);
           if (e.type === "ringout") { say(`RING OUT! ${v} is off the stage!`, true); burst(16, ["😱", "🤯", "📣", "🔥"]); }
@@ -335,5 +347,35 @@ function Shout() {
       <input value={t} maxLength={80} placeholder={err || "📣 Shout something…"} aria-label="Shout something to the town" onChange={(e) => setT(e.target.value)} className={err ? "err" : ""} />
       <button className="btn small" disabled={busy || !t.trim()}>Say</button>
     </form>
+  );
+}
+
+type AgendaData = { agenda: string | null; diary: { t: number; text: string }[]; options: Record<string, { name: string; what: string }> };
+
+/** What your Chog does today while you're away, and what it got up to. */
+export function AgendaPicker({ full = false }: { full?: boolean }) {
+  const [d, setD] = useState<AgendaData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => api<AgendaData>("/api/live/agenda").then(setD).catch(() => {});
+  useEffect(() => { load(); const i = setInterval(load, 20_000); return () => clearInterval(i); }, []);
+  if (!d) return null;
+  const set = async (mode: string) => { setBusy(true); try { await api("/api/live/agenda", { mode }); await load(); } catch {} setBusy(false); };
+  return (
+    <div className="agenda">
+      <div className="live-feud-top"><span>Today's agenda</span>{d.agenda && <b className="stage s1">{d.options[d.agenda]?.name}</b>}</div>
+      <div className="agenda-opts">
+        {Object.entries(d.options).map(([k, o]) => (
+          <button key={k} className={d.agenda === k ? "on" : ""} disabled={busy} onClick={() => set(k)} title={o.what}>{o.name}</button>
+        ))}
+      </div>
+      <p className="live-note small">{d.agenda ? d.options[d.agenda]?.what : "Pick what your Chog gets up to while you're away. Everyone watching sees it happen."}</p>
+      {full && (
+        <div className="diary">
+          <div className="live-feud-top"><span>While you were away</span></div>
+          {d.diary.length === 0 ? <p className="live-note small">Nothing yet. Give it an agenda and check back.</p> :
+            d.diary.slice(0, 6).map((x, i) => <div key={i} className="diary-row"><span>{ago(x.t)}</span>{x.text}</div>)}
+        </div>
+      )}
+    </div>
   );
 }

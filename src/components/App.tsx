@@ -44,13 +44,20 @@ export default function App() {
     const go = () => { startMusic(); removeEventListener("pointerdown", go); };
     addEventListener("pointerdown", go); return () => removeEventListener("pointerdown", go);
   }, [entered]);
-  const onLive = useCallback((v: LiveView) => { setLive(v); setOffset(v.now - Date.now()); }, []);
 
   const toast = useCallback((t: string) => {
     setToastText(t); setToastOn(true);
     clearTimeout(toastT.current);
     toastT.current = setTimeout(() => setToastOn(false), 2600);
   }, []);
+  // a real Chog trade on Monad: tell everyone watching
+  const seenMoves = useRef<Set<string> | null>(null);
+  const onLive = useCallback((v: LiveView) => {
+    setLive(v); setOffset(v.now - Date.now());
+    const moved = (v as LiveView & { moved?: { id: number; name: string; t: number }[] }).moved ?? [];
+    if (!seenMoves.current) { seenMoves.current = new Set(moved.map((m) => `${m.id}:${m.t}`)); return; }
+    for (const m of moved) { const k = `${m.id}:${m.t}`; if (!seenMoves.current.has(k)) { seenMoves.current.add(k); toast(`🏠 ${m.name} #${m.id} just changed hands on Monad. Its feuds go with it.`); } }
+  }, [toast]);
 
   const open = useCallback((key: PlaceKey) => { setEntered(true); setActive(key); }, []);
   const close = useCallback(() => setActive(null), []);

@@ -19,10 +19,10 @@ import { bump, seen } from "@/lib/stats";
 import { progress } from "@/lib/quests";
 import { POWERS, powersOf, isNight, type PowerKey } from "@/lib/powers";
 import { client, ownerOf } from "@/lib/chain";
-import { CHOG_TOKEN } from "@/lib/config";
-import { decodeEventLog, formatUnits, getAddress, parseAbi } from "viem";
+import { CHOG_TOKEN, CHOG_CONTRACT } from "@/lib/config";
+import { createPublicClient, decodeEventLog, formatUnits, getAddress, http, parseAbi } from "viem";
 
-const V = 7; // bump to replace a running island in dev
+const V = 10; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
 const AUTO_MAIN_EVERY_MS = 6 * 60_000;
@@ -45,6 +45,9 @@ export type AnyCard = CardKey | PowerKey;
 const metaOf = (k: AnyCard) => (k in POWERS ? POWERS[k as PowerKey] : CARDS[k as CardKey]);
 
 interface Feud { a: number; b: number; heat: number; log: string[]; t: number }
+interface Prov { id: number; moves: number; last: { from: string; to: string; block: string; hash: string; t: number } | null }
+export type Agenda = "crown" | "fights" | "friends" | "lowkey";
+interface Diary { id: number; items: { t: number; text: string }[] }
 interface Tips { id: number; total: number; count: number; last: { from: string; amount: number; t: number } | null }
 interface Main {
   id: string; a: Fighter; b: Fighter; seed: number; why: string;
@@ -67,6 +70,9 @@ function boot() {
     nextMain: Date.now() + FIRST_MAIN_AFTER_MS, nextNpcPower: Date.now() + 40_000,
     clients: new Set<Send>(), players: new Map<number, { vid: string; until: number; busy: boolean; cool: number }>(),
     tips: new Map<number, Tips>(), owners: new Map<number, { a: string | null; at: number }>(),
+    prov: new Map<number, Prov>(), agendas: new Map<number, { mode: Agenda; day: string }>(), diary: new Map<number, Diary>(),
+    lastBlock: 0n, watching: false, nextChain: Date.now() + 15_000, nextAgenda: Date.now() + 50_000,
+    moved: [] as { id: number; name: string; t: number }[],
     seen: 0, changed: -1, lastSent: 0, timer: null as ReturnType<typeof setInterval> | null, ready: null as Promise<void> | null,
   };
   return st;
@@ -87,12 +93,20 @@ async function start(I: Island) {
   for (const c of chogs) I.chogs.set(c.id, c);
   const awake = new Set(chogs.map((c) => c.id));
   const cast = chogs.slice(0, 64).map((c) => ({
-    id: c.id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner,
+    id: c.id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner, tier: (c.traits as Record<string, string>).Tier ?? "Common",
     rel: Object.fromEntries(Object.entries(c.rel).filter(([o, r]) => awake.has(Number(o)) && r.kind !== "neutral").map(([o, r]) => [o, r.kind])),
   }));
   I.sim = createSim(cast, { seed: Date.now() % 1e9 });
   for (const f of await store().list<Feud>("feuds", 300)) I.feuds.set(key(f.a, f.b), f);
   for (const t of await store().list<Tips>("tips", 2000)) I.tips.set(t.id, t);
+  for (const p of await store().list<Prov>("prov", 2000)) I.prov.set(p.id, p);
+  for (const d of await store().list<Diary>("diary", 2000)) I.diary.set(d.id, d);
+  for (const a of await store().list<{ id: number; mode: Agenda; day: string }>("agenda", 2000)) if (a.day === today()) I.agendas.set(a.id, a);
+  // Chogs on an agenda are in town today, even if they weren't in the opening cast
+  for (const [id, a] of I.agendas) {
+    if (!I.sim.byId[id]) { const c = await chogFor(I, id); I.sim.add({ id: id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner, tier: (c.traits as Record<string, string>).Tier ?? "Common", rel: {} }); }
+    I.sim.byId[id].agenda = a.mode;
+  }
   const crown = await store().get<{ id: number; name: string; since: number; day: string }>("town", "crown");
   if (crown && crown.day === today()) I.crown = crown;
   // seed the drama: rivals from past nights start with some heat
@@ -124,6 +138,8 @@ function tick(I: Island) {
   if (m?.done && now >= m.endAt + 25_000) { I.lastMain = m; I.main = null; sim.setRally(false); }
   if (!I.main && now >= I.nextMain) autoMain(I).catch((e) => console.error("auto main", e));
   if (now >= I.nextNpcPower) npcPower(I).catch((e) => console.error("npc power", e));
+  if (now >= I.nextChain) { I.nextChain = now + 30_000; watchChain(I).catch(() => {}); }
+  if (now >= I.nextAgenda) agendaTurn(I).catch((e) => console.error("agenda", e));
   // tell viewers: right away when something happens, else twice a second
   if (sim.changed !== I.changed || now - I.lastSent > 1000) { I.changed = sim.changed; I.lastSent = now; broadcast(I); }
 }
@@ -131,13 +147,14 @@ function tick(I: Island) {
 export function view(I: Island) {
   const top = [...I.feuds.values()].filter((f) => f.heat >= 20).sort((a, b) => b.heat - a.heat).slice(0, 5)
     .map((f) => ({ a: f.a, b: f.b, an: I.chogs.get(f.a)?.name ?? `#${f.a}`, bn: I.chogs.get(f.b)?.name ?? `#${f.b}`, heat: Math.round(f.heat), stage: stageOf(f.heat) }));
-  return { now: Date.now(), ...I.sim.snapshot(), feuds: top, main: mainView(I.main), lastMain: mainView(I.lastMain), players: [...I.players.keys()], crown: I.crown, night: isNight() };
+  return { now: Date.now(), ...I.sim.snapshot(), feuds: top, main: mainView(I.main), lastMain: mainView(I.lastMain), players: [...I.players.keys()], crown: I.crown, night: isNight(), moved: I.moved.filter((m) => Date.now() - m.t < 10 * 60_000) };
 }
 
 function mainView(m: Main | null) {
   if (!m) return null;
   const n = { a: 0, b: 0 }; for (const s of Object.values(m.picks)) n[s]++;
-  return { id: m.id, a: { ...m.a, tips: tipsOf(m.a.id) }, b: { ...m.b, tips: tipsOf(m.b.id) }, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, pool: pools(m), done: m.done, winner: m.done ? m.winner : null };
+  const tierOf = (id: number) => ((G.__chogIsland?.chogs.get(id)?.traits ?? {}) as Record<string, string>).Tier ?? "Common";
+  return { id: m.id, a: { ...m.a, tips: tipsOf(m.a.id), tier: tierOf(m.a.id) }, b: { ...m.b, tips: tipsOf(m.b.id), tier: tierOf(m.b.id) }, seed: m.seed, why: m.why, bellAt: m.bellAt, startAt: m.startAt, endAt: m.endAt, picks: n, pool: pools(m), done: m.done, winner: m.done ? m.winner : null };
 }
 
 function broadcast(I: Island) {
@@ -289,6 +306,7 @@ export async function play(vid: string, id: number, target: number, card: AnyCar
   const d = card in CARDS ? CARDS[card as CardKey].heat : { zap: 20, crown: 10, frogdad: -100, haunt: 12, prank: backfired ? 15 : -10, pump: 0, dump: 0 }[card as PowerKey];
   const res = heat(I, id, target, d, summary);
   if (card in POWERS) powerEffects(I, a, b, card as PowerKey);
+  note(I, target, `${a.name} came over (${meta.name.toLowerCase()}): “${lines[0]?.text ?? ""}”`);
   if (card === "rumour" && about) heat(I, target, about.id, 15, `${a.name} told ${b.name} something about ${about.name}.`);
   if (card === "flirt" || card === "makeup") nudgeRel(a, b, +1);
   if (card === "roast") nudgeRel(a, b, -1);
@@ -488,8 +506,11 @@ async function autoMain(I: Island) {
   if (hot) return bookMain(I, hot.a, hot.b, `The island's hottest feud (${STAGES[stageOf(hot.heat)].name}).`);
   const ids = [...out] as number[];
   if (ids.length < 2) return null;
-  let x = pick(ids), y = pick(ids.filter((z) => z !== x));
-  for (let i = 0; i < 8 && I.recent.includes(key(x, y)); i++) { x = pick(ids); y = pick(ids.filter((z) => z !== x)); }
+  // rarer Chogs headline more Main Events
+  const w = (id: number) => ({ Legendary: 6, Epic: 3, Rare: 2 } as Record<string, number>)[((I.chogs.get(id)?.traits ?? {}) as Record<string, string>).Tier] ?? 1;
+  const draw = (pool: number[]) => { let r = Math.random() * pool.reduce((s, id) => s + w(id), 0); for (const id of pool) { if ((r -= w(id)) < 0) return id; } return pool[0]; };
+  let x = draw(ids), y = draw(ids.filter((z) => z !== x));
+  for (let i = 0; i < 8 && I.recent.includes(key(x, y)); i++) { x = draw(ids); y = draw(ids.filter((z) => z !== x)); }
   return bookMain(I, x, y, "Grudge match drawn from the hat.");
 }
 
@@ -502,6 +523,7 @@ async function finishMain(I: Island, m: Main) {
   const f = I.feuds.get(key(a.id, b.id));
   if (f) { f.heat = 10; f.log = [...f.log, `Settled at the Main Event: ${(r.won ? a : b).name} won.`].slice(-6); store().set("feuds", key(a.id, b.id), f).catch(() => {}); }
   const w = r.won ? a : b, l = r.won ? b : a;
+  note(I, w.id, `Won the Main Event against ${l.name}.`); note(I, l.id, `Lost the Main Event to ${w.name}. Rematch?`);
   if (I.sim.byId[w.id]) I.sim.byId[w.id].bubble = { text: "WHO'S NEXT?!", emote: "🏆", t0: I.sim.t, until: I.sim.t + 5 };
   const top = await settleBets(m).catch((e) => { console.error("settle bets", e); return null; });
   if (top && top.paid >= 300) gazette(`${top.name} won ${top.paid.toLocaleString()} chips at the Lucky Lilypad backing ${w.name} in the Main Event.`, [w.id, l.id], "chaos");
@@ -573,4 +595,141 @@ export async function tip(from: string, id: number, hash: `0x${string}`) {
   if (c?.out) { c.bubble = { text: `${Math.round(amount).toLocaleString()} $CHOG?! Thank you!!`, emote: "🪙", t0: I.sim.t, until: I.sim.t + 5 }; I.changed = -1; }
   gazette(`${name(I, id)} just got tipped ${Math.round(amount).toLocaleString()} $CHOG by a fan. That's ${Math.round(t.total).toLocaleString()} $CHOG in tips so far.`, [id], "friends");
   return { ok: true, amount, total: t.total };
+}
+
+/* ---------- the real chain: Chog Genesis transfers on Monad ---------- */
+
+const NFT_TRANSFER = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"])[0];
+// eth_getLogs wants small ranges on Monad; rpc3 answers them reliably
+const logs = createPublicClient({ transport: http(process.env.MONAD_LOGS_RPC_URL || "https://rpc3.monad.xyz", { timeout: 10_000 }) });
+
+async function watchChain(I: Island) {
+  if (I.watching) return;
+  I.watching = true;
+  try {
+    const head = await logs.getBlockNumber();
+    // start a little in the past, and never try to replay more than ~10 minutes after downtime
+    if (!I.lastBlock || head - I.lastBlock > 3000n) I.lastBlock = head - 300n;
+    let from = I.lastBlock + 1n;
+    const to = head - from > 1500n ? from + 1500n : head;
+    while (from <= to) {
+      const end = from + 99n > to ? to : from + 99n;
+      const found = await logs.getLogs({ address: CHOG_CONTRACT, event: NFT_TRANSFER, fromBlock: from, toBlock: end });
+      for (const l of found) await onTransfer(I, l).catch((e) => console.error("transfer", e));
+      from = end + 1n;
+    }
+    I.lastBlock = to;
+  } catch (e) { console.error("chain watch", e instanceof Error ? e.message.slice(0, 160) : e); }
+  finally { I.watching = false; }
+}
+
+/** A Chog changed hands on Monad: it gets a new home, its history goes with it, and the town hears about it. */
+async function onTransfer(I: Island, l: { args: { from?: string; to?: string; tokenId?: bigint }; blockNumber: bigint | null; transactionHash: string | null }) {
+  const id = Number(l.args.tokenId), from = l.args.from ?? "", to = l.args.to ?? "";
+  if (!id || !to || /^0x0+$/.test(from)) return; // skip mints
+  const p = I.prov.get(id) ?? { id, moves: 0, last: null };
+  if (p.last?.hash === l.transactionHash) return;
+  p.moves++; p.last = { from: getAddress(from), to: getAddress(to), block: String(l.blockNumber ?? ""), hash: l.transactionHash ?? "", t: Date.now() };
+  I.prov.set(id, p); store().set("prov", String(id), p).catch(() => {});
+  I.owners.set(id, { a: getAddress(to), at: Date.now() });
+  const c = await chogFor(I, id);
+  const rels = Object.values(c.rel ?? {});
+  const rivals = rels.filter((r) => r.kind === "rival").length, friends = rels.filter((r) => r.kind === "friend").length;
+  const hot = [...I.feuds.values()].filter((f) => (f.a === id || f.b === id) && f.heat >= 20).sort((x, y) => y.heat - x.heat)[0];
+  // the Chog walks out to greet its new home
+  if (!I.sim.byId[id]) I.sim.add({ id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner, tier: (c.traits as Record<string, string>).Tier ?? "Common", rel: {} });
+  I.sim.send(id, "fS");
+  const s = I.sim.byId[id];
+  if (s) s.bubble = { text: "I have a new home!", emote: "🏠", t0: I.sim.t, until: I.sim.t + 6 };
+  I.moved = [...I.moved, { id, name: c.name, t: Date.now() }].slice(-10);
+  I.changed = -1;
+  const other = hot ? name(I, hot.a === id ? hot.b : hot.a) : null;
+  gazette(`${label(c)} just changed hands on Monad. Its new holder inherits ${rivals} rival${rivals === 1 ? "" : "s"} and ${friends} friend${friends === 1 ? "" : "s"}${other ? `, plus a ${STAGES[stageOf(hot!.heat)].name} with ${other}` : ""}.`, [id], "myst");
+  note(I, id, `Changed hands on Monad. A new holder took over, with all of ${c.name}'s history.`);
+  bump("chain_transfers").catch(() => {});
+}
+
+/** Local testing only: pretend a Chog just changed hands. */
+export async function devTransfer(id: number) {
+  const I = await island();
+  await onTransfer(I, { args: { from: "0x1111111111111111111111111111111111111111", to: "0x2222222222222222222222222222222222222222", tokenId: BigInt(id) }, blockNumber: 1n, transactionHash: "0xdev" + Date.now() });
+  return { ok: true };
+}
+
+export async function provenanceOf(id: number) { return (await island()).prov.get(id) ?? null; }
+
+/* ---------- holders' agendas: what their Chog does while they're away ---------- */
+
+export const AGENDAS: Record<Agenda, { name: string; what: string }> = {
+  crown: { name: "Chase the crown", what: "Goes after the town's crown, and anyone wearing it." },
+  fights: { name: "Pick fights", what: "Roasts and zaps its way around town. Feuds heat up fast." },
+  friends: { name: "Make friends", what: "Flirts, makes up and calls truces. Feuds cool down." },
+  lowkey: { name: "Lay low", what: "Stays out of trouble and mostly indoors." },
+};
+
+/** A diary line on a Chog: what happened to it, for its holder's "while you were away". */
+function note(I: Island, id: number, text: string) {
+  const d = I.diary.get(id) ?? { id, items: [] };
+  d.items = [...d.items, { t: Date.now(), text }].slice(-14);
+  I.diary.set(id, d);
+  store().set("diary", String(id), d).catch(() => {});
+}
+
+export async function setAgenda(id: number, mode: Agenda) {
+  const I = await island();
+  if (!AGENDAS[mode]) return { ok: false, error: "Pick an agenda." };
+  const a = { id, mode, day: today() };
+  I.agendas.set(id, a); await store().set("agenda", String(id), a);
+  if (!I.sim.byId[id]) { const c = await chogFor(I, id); I.sim.add({ id, name: c.name, archetype: c.archetype, image: c.image, owned: !!c.owner, tier: (c.traits as Record<string, string>).Tier ?? "Common", rel: {} }); }
+  I.sim.byId[id].agenda = mode;
+  note(I, id, `Today's agenda: ${AGENDAS[mode].name}.`);
+  return { ok: true, mode };
+}
+
+export async function agendaOf(id: number) {
+  const I = await island();
+  return { agenda: I.agendas.get(id)?.mode ?? null, diary: (I.diary.get(id)?.items ?? []).slice().reverse() };
+}
+
+/**
+ * Holders' Chogs act on their agenda while their holder is offline: every minute or so one of them
+ * goes and does its thing in a real scene everyone can watch, and it lands in that Chog's diary.
+ */
+async function agendaTurn(I: Island) {
+  I.nextAgenda = Date.now() + 55_000 * (.7 + Math.random() * .6);
+  if (I.sim.rally || (I.main && !I.main.done)) return;
+  type C = { id: number; out: boolean; leaving: boolean; walking: boolean; talking: boolean; player: boolean; hold: boolean; fade: number; agenda?: Agenda | null };
+  const all = I.sim.chogs as C[];
+  const free = all.filter((c) => c.out && !c.leaving && !c.walking && !c.talking && !c.player && !c.hold && c.fade >= 1);
+  // a Chog on an agenda can break off its walk to go and do it
+  const doers = all.filter((c) => c.out && !c.leaving && !c.talking && !c.player && !c.hold && c.fade >= 1 && c.agenda && c.agenda !== "lowkey" && I.agendas.get(c.id)?.day === today());
+  if (!doers.length || free.length < 2) { I.nextAgenda = Date.now() + 15_000; return; }
+  const c = pick(doers), me = await chogFor(I, c.id), powers = powersOf(me.traits);
+  const others = free.filter((x) => x.id !== c.id);
+  let card: AnyCard = "roast", targetId = pick(others).id;
+  if (c.agenda === "fights") {
+    const rival = others.find((x) => (feudOf(I, c.id, x.id)?.heat ?? 0) >= 20);
+    if (rival) targetId = rival.id;
+    card = powers.includes("zap") ? "zap" : powers.includes("prank") && Math.random() < .5 ? "prank" : "roast";
+  } else if (c.agenda === "friends") {
+    const rival = others.find((x) => (feudOf(I, c.id, x.id)?.heat ?? 0) >= 20);
+    if (rival) { targetId = rival.id; card = powers.includes("frogdad") ? "frogdad" : "makeup"; } else card = "flirt";
+  } else if (c.agenda === "crown") {
+    if (I.crown?.id === c.id) return; // already wearing it
+    const holder = I.crown ? others.find((x) => x.id === I.crown!.id) : null;
+    if (powers.includes("crown") && (!I.crown || holder)) { card = "crown"; targetId = holder?.id ?? targetId; }
+    else if (holder) { card = "roast"; targetId = holder.id; }
+    else return;
+  }
+  const sc = I.sim.scene(c.id, targetId, null, () => {});
+  if (!sc) return;
+  const b = await chogFor(I, targetId), f = feudOf(I, c.id, targetId);
+  const lines = await sceneLines(me, b, card, stageOf(f?.heat ?? 0), f?.log ?? [], null, false);
+  sc.lines = lines.map((l, i) => ({ ...l, emote: i === 0 ? metaOf(card).emote : "" }));
+  const d = card in CARDS ? CARDS[card as CardKey].heat : { zap: 20, crown: 10, frogdad: -100, haunt: 12, prank: Math.random() < .5 ? 15 : -10, pump: 0, dump: 0 }[card as PowerKey];
+  heat(I, c.id, targetId, d, `${me.name} (${AGENDAS[c.agenda!].name.toLowerCase()}): “${lines[0]?.text ?? ""}”`);
+  if (card in POWERS) powerEffects(I, me, b, card as PowerKey);
+  note(I, c.id, `${metaOf(card).name} on ${b.name}: “${lines[0]?.text ?? ""}”`);
+  note(I, targetId, `${me.name} came over (${metaOf(card).name.toLowerCase()}): “${lines[0]?.text ?? ""}”`);
+  bump("agenda_scenes").catch(() => {});
 }

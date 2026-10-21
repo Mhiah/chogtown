@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Shell, ChogView } from "../types";
+import { AgendaPicker } from "../LiveLayer";
 import { api, hasWallet, signIn, errMsg } from "../client";
 import { ChogFace } from "../icons";
 
@@ -188,6 +189,7 @@ function Chogmate({ shell, id }: { shell: Shell; id: number }) {
         {chog.moments[0] && <p className="note">Never forgets: {chog.moments[0].text}</p>}
       </div>
 
+      {me?.canPlay && me.tokenId === chog.id && <div className="card"><AgendaPicker full /></div>}
       {me?.canPlay && <div className="card">
         <div className="row"><div className="k">Chat</div><div className="k num">{left} left today</div></div>
         <div className="chat" ref={chatRef}>

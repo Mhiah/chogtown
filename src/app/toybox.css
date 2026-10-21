@@ -489,3 +489,17 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
   .main-call{bottom:calc(150px + env(safe-area-inset-bottom,0px));white-space:normal;text-align:center;width:max-content;max-width:calc(100% - 32px)}
 }
 .sheet-body>.tabs,.sheet-body .tabs{flex-shrink:0}
+.live-card-head .tier{display:inline-block;margin-left:6px;font-style:normal;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:2px 8px;vertical-align:1px}
+.tier.t-legendary{background:linear-gradient(90deg,#ffbf3c,#ff7aa8);color:#fff}
+.tier.t-epic{background:#7b4cf0;color:#fff}
+.tier.t-rare{background:#d9f2ff;color:#16708f}
+.tier.t-uncommon{background:#eef0ff;color:#5b5fa8}
+.holder-line{font-size:12px;margin-top:-4px}
+.holder-line b{color:var(--ink)}
+.agenda{display:flex;flex-direction:column;gap:7px}
+.agenda-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.agenda-opts button{border:0;border-radius:12px;min-height:36px;background:#fff;box-shadow:inset 0 0 0 2px #ece6ff;font-family:var(--display);font-weight:600;font-size:13.5px;color:var(--ink2);cursor:pointer}
+.agenda-opts button.on{background:#2b1b5a;color:#ffbf3c;box-shadow:none}
+.diary{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.diary-row{font-size:13px;font-weight:700;color:var(--ink);line-height:1.4}
+.diary-row span{display:inline-block;min-width:64px;color:var(--muted);font-weight:800;font-size:11.5px}
