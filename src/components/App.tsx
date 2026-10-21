@@ -115,7 +115,7 @@ export default function App() {
       <MainEvent live={live} offset={offset} toast={toast} />
       <Onboarding entered={entered && !active} open={help} onClose={() => setHelp(false)} />
       <header className="top">
-        <div className="brand"><span className="mark"><img src="/toy/wave.webp" alt="" /></span> <span className="brand-name">Chogtown</span></div>
+        <div className="brand"><span className="mark"><img src="/toy/head.webp" alt="" /></span> <span className="brand-name">Chogtown</span></div>
         <div className="meta">
           <Quests entered={entered} playing={!!me?.tokenId && !!live?.players.includes(me.tokenId)} toast={toast} />
           <button className="pill glass btnlike help" aria-label={muted ? "Sound on" : "Sound off"} onClick={() => { const m = !muted; setMuted(m); setMute(m); if (!m) { startMusic(); sfx.blip(); } }}>{muted ? "🔇" : "🔊"}</button>

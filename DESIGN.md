@@ -30,6 +30,12 @@ thatskygame.com, cozyeating.app (Awwwards), Brawl Stars HUD (interfaceingame.com
 | | **Running total** | **55.2** |
 | 2026-10-20 | Night renders of the wide and portrait island (nano_banana_pro 4k + 2k) | 6 |
 | | **Running total** | **61.2** |
+| 2026-10-21 | The real Chog as the toy mascot: master + 7 poses incl. head icon (gpt_image_2_5 high) | 12 |
+| | **Running total** | **73.2** |
+
+**Mascot (Oct 21):** the user asked for "the actual Chog as the mascot". The toy art in `public/toy` (wave, fight, read,
+trophy, selfie, hug, chips, head) is now Chog himself as a glossy vinyl toy (purple spiky mane, cream face, pink gloves),
+made from the user's reference art. The brand mark and favicon set use his head on a pink tile.
 
 **Mascot:** the toy Chog's glasses are plain orange lenses, no BTC marks (user: keep it only Chog related).
 Favicon set (`src/app/favicon.ico`, `icon.png`, `apple-icon.png`) is the toy's head on a rose tile, cut from `public/toy/wave.webp`.

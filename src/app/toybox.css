@@ -448,3 +448,12 @@ body{background:linear-gradient(180deg,#e9e0ff,#ffe3ec);color:var(--ink);font-fa
   .playbar.on{padding:6px}
   .playbar .shout input{width:170px}
 }
+/* the header never gets squeezed by a tall sheet body: long names stay out of the tabs */
+.sheet-head{flex-shrink:0}
+@media (max-width:700px){
+  .sheet h2{font-size:24px;line-height:1.1;max-width:68%}
+  .sheet{max-height:66%}
+}
+/* the brand mark: Chog's head on a soft pink tile */
+.brand .mark{background:linear-gradient(160deg,#fff4f8,#ffb3cf);box-shadow:0 4px 0 #f08fb3}
+.brand .mark img{width:90%;height:90%;object-fit:contain;object-position:center;margin-top:3px}
