@@ -1,72 +1,115 @@
 # Chogtown
 
-**A live reality show starring all 1,969 Chog Genesis NFTs.**
+Chogtown is a shared town where all 1,969 Chog Genesis NFTs live, built for [Chogathon 2026](https://chogathon.chog.xyz). The Chogs walk around, talk, start feuds and settle them in live fights. The town runs on the server all the time, and every visitor sees the same Chogs doing the same things at the same moment. Holders play their own Chog. Everyone else can watch, read any Chog's history and play the casino with free chips.
 
-Chogtown is a floating toy town that never stops. Chogs walk the paths, gossip, roast each other and hold grudges, and every viewer sees the same Chogs in the same places, saying the same things, at the same moment. The town runs on the server around the clock, so nobody has to be online for the drama to happen. Holders step in and play their own Chog; everyone else watches.
+Live: https://chogtown.up.railway.app
 
-- **Live:** https://chogtown.up.railway.app
-- Entry for [Chogathon 2026](https://chogathon.chog.xyz)
+## Places
 
-## What you can do
+| Place | What happens there |
+| --- | --- |
+| Your Chogmate | Sign in with the wallet that holds your Chog. Chat with it, check in, read its morning report and see its stats. Visitors can look up any Chog by number. |
+| The Royal Amphitheatre | Main Events are fought here in the Rumble, a ring-out brawler. It also holds the daily debate, where visitors vote on which Chog wins. |
+| The Grand Gazette | The town's news feed: feuds, new friendships, crown changes, sales, tips, jackpots and top Face Booth scores. |
+| Palace of Legends | Leaderboards for Rumble wins, Face Booth scores, streaks, debate wins, feuds and the friendliest Chogs. |
+| The Boutique Quarter | The Face Booth, where your face controls your Chog, and a dress-up studio that makes a card to download or share on X. The NFT itself never changes. |
+| Lucky Lilypad | The casino. It uses play chips only, which can't be bought or cashed out. It has Chog Slots, betting on Main Events and a high-roller table. |
 
-- **Watch.** Tap any Chog to read its story: who it loves, who it can't stand, what it did last night. The Grand Gazette reports the drama.
-- **Play your own Chog (holders only).** Sign in with the wallet that holds it and it walks onto the island wearing a 👑. Tap anywhere to walk, or tap another Chog to play a card: 🔥 Roast, 🤫 Spread a rumour, 💘 Flirt, 🤝 Make up or 🥊 Challenge. The two Chogs act the scene out in speech bubbles, in character, while the town watches.
-- **Feuds escalate.** Every pair of Chogs has a feud meter: Cordial → Side-eye → Beef → Public feud → Main Event. Rivals who bump into each other heat it up on their own.
-- **The Main Event.** Push a feud far enough and the bell rings. Every Chog in town walks to the Royal Amphitheatre and the two fight it out in the Rumble, a ring-out brawler where each Chog's moves come from its traits. Everyone watches the same fight at the same moment, and can pick a side or bet chips. One rings every 6 minutes for the hottest feud even if nobody books it.
-- **Set an agenda.** Holders give their Chog a plan for the day (Chase the crown, Pick fights, Make friends or Lay low). It follows it while they're offline, and "While you were away" shows what it did.
-- **The Lucky Lilypad.** The town casino, with play chips only: Chog Slots and the Main Event book (a pool, so the odds move as people bet).
-- **Every day:** quests with a streak, a Chog of the Day, a fresh Gazette, day and night on UTC time, the Palace of Legends leaderboards, Shout, the Face Booth and the Boutique.
+## How to play
+
+Holders sign in with a free signed message, so there's no transaction or gas. Your Chog then joins the island marked with a crown. Tap the map to walk, or tap another Chog to play a card:
+
+| Card | Effect on the feud |
+| --- | --- |
+| Roast | Heats it up a lot |
+| Spread a rumour | Heats it up a little |
+| Flirt | Cools it down |
+| Make up | Cools it down a lot |
+| Challenge | Calls the other Chog out to a Main Event |
+
+Both Chogs then act out the scene in speech bubbles, in character, where everyone can see it.
+
+Every pair of Chogs has a feud level: Cordial, Side-eye, Beef, Public feud, then Main Event. Rivals who meet heat their feud up on their own.
+
+When a feud reaches Main Event, a bell rings. Every Chog walks to the Amphitheatre, and the two Chogs fight while everyone watches the same fight live. Visitors can back a side or bet chips. If no feud gets there first, a Main Event starts every 6 minutes for the hottest one.
+
+Holders can also give their Chog a plan for the day: Chase the crown, Pick fights, Make friends or Lay low. The Chog keeps to it while its holder is offline, and the next visit shows what it did.
+
+There are also daily goals each day, paid in chips, with a bonus and a streak for finishing them all. Other daily features:
+- one Chog holds the crown as Chog of the Day until another takes it
+- the town switches between day and night on UTC time
+- players can shout a line to the whole town
 
 ## Why the Chog NFT is essential
 
-Take the NFT out and there's no cast, no players and no story.
-
-- **The NFT is the character.** All 1,969 residents are Chog Genesis tokens. Eyes and Mouth set a Chog's archetype (Critic, Hype Beast, Dreamer, Schemer, Sweetheart, Drama Queen, Brawler, Know-it-all), which sets how it talks and who it clashes with. Its Rumble moves come from its traits: Eyes are its attack, Mouth its special, Head its dash. Every card shows "Made by its traits". (`src/lib/personality.ts`)
-- **Traits are powers.** Laser eyes Zap. A crown claims the town's crown. A frog calls Frog Dad to end a feud. Skulls Haunt at night. Candles Pump or Dump the Main Event pool. Clowns Prank. Legendaries get them all. (`src/lib/powers.ts`)
-- **Only holders play.** Ownership is checked with `ownerOf` on Monad. Everyone else watches.
-- **The chain moves the story.** The server watches Chog Genesis `Transfer` logs on Monad. When a Chog sells, the town reacts live: it walks out to its new home, viewers get a toast, the Gazette reports it, and its card shows the new holder and how many times it has changed hands.
-- **History belongs to the token.** Feuds, records, crowns, tips and diaries are stored per token, so buying a Chog means buying its friends and grudges.
-- **Rarity is fame.** Legendaries and Epics stand taller and wear a gold or violet frame, a Legendary announces itself when it walks out, and rarer Chogs are drawn for more Main Events.
+- Every resident is a Chog Genesis token. A Chog's Eyes and Mouth decide its personality type: Critic, Hype Chog, Dreamer, Schemer, Sweetheart, Drama Chog, Brawler or Know-It-All. That type sets how it talks and who it clashes with (`src/lib/personality.ts`).
+- Its traits also set its Rumble moves. Eyes are the attack, Mouth is the special and Head is the dash.
+- Traits give powers (`src/lib/powers.ts`):
+  - Laser eyes can Zap.
+  - A crown or royal robes can Claim the Crown.
+  - A frog can call Frog Dad to end a feud.
+  - A Skull or Radioactive base can Haunt at night.
+  - A Green or Red Candle can Pump or Dump one side's odds before a Main Event.
+  - Clown traits can Prank.
+  - The 1:1s and Legendaries get every power.
+- Only holders can play. The server checks `ownerOf` on Monad when you sign in and again every hour.
+- The server watches Chog Genesis `Transfer` events on Monad. When a Chog sells, it walks out to its new home, viewers see a notice, and the Gazette reports it. Its card shows the new holder and how many times it has changed hands.
+- Feuds, records, crowns, tips and diaries belong to the token. Whoever buys a Chog inherits its friends and rivals. The new holder's chats and streak start fresh.
+- Rarer Chogs stand taller and get a gold or violet frame, and they are picked for Main Events more often.
 
 ## $CHOG
 
-Everything reads the chain; the only transaction is a tip you send from your own wallet.
+The app only reads the chain. The one exception is a tip, which you send and approve in your own wallet.
 
-- **Bigger daily chips:** +200 a day from 1,000 $CHOG, +500 from 25,000 and +1,500 from 250,000.
-- **Tip a Chog** 100, 1k or 10k $CHOG from its card. It goes straight to whoever holds that Chog. The server finds the $CHOG `Transfer` in the transaction before counting it, the Chog thanks you live on the island, and the tip makes the Gazette.
-- Chog holders also get the 250 and 500 high-roller bets, and can Challenge a rival from Side-eye.
+- Holding $CHOG raises your daily chips: +200 a day from 1,000 $CHOG, +500 from 25,000 and +1,500 from 250,000.
+- You can tip a Chog 100, 1,000 or 10,000 $CHOG from its card. The tip goes straight to whoever holds that Chog. The server confirms the $CHOG `Transfer` in the transaction before counting it, the Chog thanks you on the island, and the tip appears in the Gazette.
+- Chog holders also get the 250 and 500 chip bets and can challenge a rival from Side-eye.
 
-Contracts on Monad (chain 143): Chog Genesis `0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763`, $CHOG `0x350035555E10d9AfAF1566AaebfCeD5BA6C27777` (18 decimals).
+Both contracts are on Monad (chain 143):
+- Chog Genesis: `0xc96d31f8626c6d03fae5dcd3d61e3fb9f4a73763`
+- $CHOG: `0x350035555E10d9AfAF1566AaebfCeD5BA6C27777` (18 decimals)
 
 ## How it works
 
-- **One town, server-side.** `src/live/island.ts` runs the island: the life sim (`src/live/sim.js`), scenes, feuds, powers, agendas, the chain watcher, the crown, bets and tips. Snapshots stream to every browser over Server-Sent Events (`/api/live/stream`), and each browser moves the Chogs smoothly between them (`src/live/render.js`).
-- **Synced Main Events.** The Rumble engine (`src/arena/rumble.js`) is fully seeded. The server plays the fight headless first to know the result, then every browser replays the same seed in fixed 60 fps ticks from the shared start time. Join late and it fast-forwards.
-- **Scenes.** Claude writes each scene from both Chogs' archetypes, their feud stage and history, with a scripted fallback.
-- **Chain watcher.** Every 30 s the server reads Chog Genesis `Transfer` logs in 100-block ranges and replays them into the town.
-- **Sign-in** is a free signed message, then `ownerOf` on Monad, re-checked hourly.
-- **Art:** the toy town and toy Chog mascot are Higgsfield renders made for this project (credits logged in `DESIGN.md`). All 1,969 Chogs' traits and art are bundled from the Chog Genesis metadata.
+- `src/live/island.ts` runs the town on the server. It covers the simulation (`src/live/sim.js`), scenes, feuds, powers, plans, the crown, bets, tips and the chain watcher. Snapshots stream to every browser over Server-Sent Events (`/api/live/stream`), and `src/live/render.js` animates the Chogs between them.
+- The Rumble (`src/arena/rumble.js`) is fully seeded. The server plays each fight first to know the result. Every browser then replays the same seed at a fixed 60 ticks a second from the same start time, and a viewer who joins late skips ahead.
+- Scenes and chats are written by an AI model from both Chogs' personality types, feud level and history. Without an AI key, they use pre-written lines.
+- Every 30 seconds, the chain watcher reads Chog Genesis `Transfer` logs in 100-block ranges and plays them into the town.
+- Once a night, the town runs its overnight round (`runNight` in `src/lib/night.ts`): Chogs meet, form friendships and rivalries, and the Gazette fills up. The debate is settled and a new one starts.
+- The Face Booth uses MediaPipe Face Landmarker in the browser, and camera frames never leave the device.
+- The town and mascot art are Higgsfield renders made for this project. Credits are logged in `DESIGN.md`. The traits and art for all 1,969 Chogs are bundled from the Chog Genesis metadata.
 
 ## Running it
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in what you have
+cp .env.example .env.local
 npm run dev
 ```
 
-Everything works without keys: Chogs talk from a script and data lives in memory. Add:
+It runs with no keys: the Chogs use pre-written lines and data is kept in memory. These settings turn on the rest:
 
-- `ANTHROPIC_API_KEY` for written scenes and chats (`claude-haiku-5-5` by default; `CHOG_MODEL` to change). `XAI_API_KEY` or `GROQ_API_KEY` work as alternatives.
-- `DATABASE_URL` (any Postgres; the table is created on first use) to persist the town.
-- `SESSION_SECRET` (required in production).
-- `MONAD_RPC_URL` for `ownerOf` and balances, and `MONAD_LOGS_RPC_URL` for the Transfer watcher (default `https://rpc3.monad.xyz`).
-- `JUDGE_CODE` to enable a judge pass at `/api/judge?code=…`, which lets a browser play any Chog like a holder.
-- `CRON_SECRET` protects ringing the bell by hand.
-- Demo and testing only: `AUTO_MAIN_MS` changes how often a Main Event rings automatically, and `DEMO_REPLAY=1` lets `/api/live/act` replay a given Transfer.
+| Setting | What it does |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Claude writes scenes, chats and gossip. The default model is `claude-haiku-5-5`, and `CHOG_MODEL` changes it. |
+| `XAI_API_KEY` or `GROQ_API_KEY` | Alternatives to Claude, used when there's no Anthropic key. `XAI_MODEL` and `GROQ_MODEL` change their models. |
+| `DATABASE_URL` | Any Postgres, used to keep the town between restarts. The table is created on first use. `SUPABASE_URL` with `SUPABASE_SERVICE_ROLE_KEY` also works, after running `supabase/schema.sql` once. |
+| `SESSION_SECRET` | Signs the sign-in cookie. Required in production. |
+| `MONAD_RPC_URL`, `MONAD_LOGS_RPC_URL` | Monad RPCs for ownership and balances, and for the Transfer watcher. |
+| `JUDGE_CODE` | Turns on a judge pass at `/api/judge?code=...`, which lets a browser play any Chog as if it were the holder. |
+| `NIGHTLY_IN_PROCESS=1` | Runs the overnight round inside the server, just after 00:05 UTC. Use this on Railway. On Vercel, the cron in `vercel.json` calls `/api/cron/night` instead. |
+| `CRON_SECRET` | Protects `/api/cron/night`. |
+| `AUTO_MAIN_MS`, `DEMO_REPLAY=1` | Demos only. The first changes how often a Main Event starts on its own. The second lets `/api/live/act` replay a given Transfer. |
 
-Deployed on Railway with the included `Dockerfile` and `railway.json`.
+The live site runs on Railway using the included `Dockerfile` and `railway.json`.
 
 ## Stack
 
-Next.js 14 (App Router, TypeScript) · React · Server-Sent Events · HTML5 canvas · Postgres · viem on Monad · Claude API · MediaPipe Face Landmarker
+- Next.js 14 (App Router, TypeScript)
+- React
+- Server-Sent Events
+- HTML canvas
+- Postgres
+- viem on Monad
+- Claude API
+- MediaPipe Face Landmarker
