@@ -75,6 +75,22 @@ export function drawIsland(ctx, sim, view, now, hover) {
     if (im) { ctx.scale(c.face < 0 ? -1 : 1, 1); ctx.drawImage(im, c.face < 0 ? -cx - cw : cx, cy, cw, ch); }
     else { ctx.fillStyle = '#efe8ff'; ctx.fillRect(cx, cy, cw, ch); }
     ctx.restore();
+    if ((c.tier === 'Legendary' || c.tier === 'Epic') && !c.crowned) {
+      // rarity frame: a pulsing gold ring and sparkles for Legendaries, violet for Epics
+      const leg = c.tier === 'Legendary', pulse = .5 + .5 * Math.sin(now * 3 + c.id);
+      ctx.save(); ctx.shadowColor = leg ? 'rgba(255,191,60,.95)' : 'rgba(160,100,255,.9)'; ctx.shadowBlur = s * (leg ? .45 + pulse * .25 : .3);
+      ctx.strokeStyle = leg ? '#ffbf3c' : '#a06bff'; ctx.lineWidth = Math.max(2.5, s * (leg ? .08 : .06));
+      rr(ctx, cx - s * .1, cy - s * .1, cw + s * .2, ch + s * .2, s * .24); ctx.stroke(); ctx.restore();
+      if (leg) {
+        ctx.font = `${s * .32}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (let i = 0; i < 3; i++) {
+          const a = now * 1.6 + i * 2.1 + c.id, r = s * .78;
+          ctx.globalAlpha = c.fade * (.45 + .55 * Math.abs(Math.sin(now * 2.4 + i)));
+          ctx.fillText('✨', Math.cos(a) * r, cy + ch / 2 + Math.sin(a) * r * .8);
+        }
+        ctx.globalAlpha = c.fade;
+      }
+    }
     if (c.crowned) {
       // Chog of the Day: a big crown and a golden ring
       ctx.save(); ctx.shadowColor = 'rgba(255,191,60,.9)'; ctx.shadowBlur = s * .5;

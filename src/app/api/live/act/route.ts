@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const r = await pickSide(v.vid, b.side);
     return r.ok ? json(r) : fail(r.error!);
   }
-  if (b.kind === "devtransfer" && process.env.NODE_ENV !== "production" && Number.isInteger(b.id)) return json(await devTransfer(b.id));
+  if (b.kind === "devtransfer" && (process.env.NODE_ENV !== "production" || process.env.DEMO_REPLAY === "1") && Number.isInteger(b.id)) return json(await devTransfer(b.id, b.real));
   if (!s) return fail("Pick a Chog to play first.", 401);
   if (!s.tokenId) return fail("Pick a Chog to play first.", 401);
   if (!canPlay(s)) return fail(WATCH_ONLY, 403);

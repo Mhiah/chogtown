@@ -25,8 +25,8 @@ import { createPublicClient, decodeEventLog, formatUnits, getAddress, http, pars
 const V = 10; // bump to replace a running island in dev
 const TICK_MS = 100;
 const BELL_TO_FIGHT_MS = 40_000;   // the crowd walks over, the VS card shows, picks open
-const AUTO_MAIN_EVERY_MS = 6 * 60_000;
-const FIRST_MAIN_AFTER_MS = 2 * 60_000;
+const AUTO_MAIN_EVERY_MS = Number(process.env.AUTO_MAIN_MS) || 6 * 60_000;
+const FIRST_MAIN_AFTER_MS = process.env.AUTO_MAIN_MS ? AUTO_MAIN_EVERY_MS : 2 * 60_000;
 
 export const STAGES = [
   { at: 0, name: "Cordial" }, { at: 20, name: "Side-eye" }, { at: 45, name: "Beef" }, { at: 70, name: "Public feud" }, { at: 90, name: "Main Event" },
@@ -649,10 +649,10 @@ async function onTransfer(I: Island, l: { args: { from?: string; to?: string; to
   bump("chain_transfers").catch(() => {});
 }
 
-/** Local testing only: pretend a Chog just changed hands. */
-export async function devTransfer(id: number) {
+/** Local testing and demo recording only: replay a Chog changing hands (a real past transfer when given one). */
+export async function devTransfer(id: number, real?: { from: string; to: string; block: string; hash: string }) {
   const I = await island();
-  await onTransfer(I, { args: { from: "0x1111111111111111111111111111111111111111", to: "0x2222222222222222222222222222222222222222", tokenId: BigInt(id) }, blockNumber: 1n, transactionHash: "0xdev" + Date.now() });
+  await onTransfer(I, { args: { from: real?.from ?? "0x1111111111111111111111111111111111111111", to: real?.to ?? "0x2222222222222222222222222222222222222222", tokenId: BigInt(id) }, blockNumber: BigInt(real?.block ?? 1), transactionHash: real?.hash ?? "0xdev" + Date.now() });
   return { ok: true };
 }
 
