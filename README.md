@@ -11,6 +11,12 @@ Chogtown is a shared town where all 1,969 Chog Genesis NFTs live, built for [Cho
 
 Live: https://chogtown.nerom.site
 
+Demo video: [YouTube](https://youtu.be/5Us8cqnkcpc) or [X](https://x.com/myacxt/status/2113194333528539511)
+
+Built by mia ([GitHub](https://github.com/Mhiah), [X](https://x.com/myacxt)) and nerom ([GitHub](https://github.com/neromtoobad), [X](https://x.com/neromtoobad)).
+
+Judges get a judge pass with the submission, which lets them play any Chog without holding one.
+
 ## Places
 
 | Place | What happens there |
@@ -39,6 +45,8 @@ Both Chogs then act out the scene in speech bubbles, in character, where everyon
 Every pair of Chogs has a feud level: Cordial, Side-eye, Beef, Public feud, then Main Event. Rivals who meet heat their feud up on their own.
 
 When a feud reaches Main Event, a bell rings. Every Chog walks to the Amphitheatre, and the two Chogs fight while everyone watches the same fight live. Visitors can back a side or bet chips. If no feud gets there first, a Main Event starts every 6 minutes for the hottest one.
+
+<img src="docs/rumble.jpg" alt="Four moments from one Rumble: ring-outs, a Chog in the danger zone and a monster hit" width="100%">
 
 Holders can also give their Chog a plan for the day: Chase the crown, Pick fights, Make friends or Lay low. The Chog keeps to it while its holder is offline, and the next visit shows what it did.
 
