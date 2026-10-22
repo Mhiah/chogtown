@@ -2,7 +2,7 @@
 
 Chogtown is a shared town where all 1,969 Chog Genesis NFTs live, built for [Chogathon 2026](https://chogathon.chog.xyz). The Chogs walk around, talk, start feuds and settle them in live fights. The town runs on the server all the time, and every visitor sees the same Chogs doing the same things at the same moment. Holders play their own Chog. Everyone else can watch, read any Chog's history and play the casino with free chips.
 
-Live: https://chogtown.up.railway.app
+Live: https://chogtown.nerom.site
 
 ## Places
 
