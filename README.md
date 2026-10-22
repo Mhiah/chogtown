@@ -1,5 +1,12 @@
 # Chogtown
 
+<p>
+  <img src="docs/island.jpg" alt="The island, live: Chogs walking and talking, with the hot feuds and Chog of the Day" width="49%">
+  <img src="docs/main-event.jpg" alt="A Main Event in the Royal Amphitheatre: RING OUT, with live commentary and the crowd reacting" width="49%">
+</p>
+
+*Left: the island, live. Right: a Main Event, the same fight on every screen.*
+
 Chogtown is a shared town where all 1,969 Chog Genesis NFTs live, built for [Chogathon 2026](https://chogathon.chog.xyz). The Chogs walk around, talk, start feuds and settle them in live fights. The town runs on the server all the time, and every visitor sees the same Chogs doing the same things at the same moment. Holders play their own Chog. Everyone else can watch, read any Chog's history and play the casino with free chips.
 
 Live: https://chogtown.nerom.site
